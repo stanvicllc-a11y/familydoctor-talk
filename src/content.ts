@@ -36,13 +36,9 @@ type LanguageContent = {
     answeringLabel: string
     tapToAnswer: string
     simulateAnswer: string
-    startSpeaking: string
-    doneSpeaking: string
     typeInstead: string
     typedPlaceholder: string
-    confirmPrompt: string
     confirmAnswer: string
-    redoAnswer: string
     fallbackTitle: string
     fallbackBody: string
     noTranscript: string
@@ -101,13 +97,9 @@ export const content: Record<LanguageKey, LanguageContent> = {
       answeringLabel: 'Mic placeholder active',
       tapToAnswer: 'Tap to answer',
       simulateAnswer: 'Simulate answer',
-      startSpeaking: 'Start speaking',
-      doneSpeaking: "I'm finished",
       typeInstead: 'Type instead',
       typedPlaceholder: 'Type your answer here',
-      confirmPrompt: 'Did I get that right?',
       confirmAnswer: 'Yes, continue',
-      redoAnswer: 'Record again',
       fallbackTitle: 'Type your answer',
       fallbackBody:
         'Speech is not working here. You can type this answer and continue safely.',
@@ -220,13 +212,9 @@ export const content: Record<LanguageKey, LanguageContent> = {
       answeringLabel: 'Mic placeholder active',
       tapToAnswer: 'Answer dene ke liye tap karein',
       simulateAnswer: 'Answer simulate karein',
-      startSpeaking: 'Bolna start karein',
-      doneSpeaking: 'Main bol chuka/chuki hoon',
       typeInstead: 'Type karein',
       typedPlaceholder: 'Apna answer yahan type karein',
-      confirmPrompt: 'Kya maine sahi samjha?',
       confirmAnswer: 'Haan, continue',
-      redoAnswer: 'Dobara record karein',
       fallbackTitle: 'Apna answer type karein',
       fallbackBody:
         'Yahan speech kaam nahi kar rahi. Aap answer type karke safely continue kar sakte hain.',

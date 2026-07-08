@@ -7,13 +7,13 @@ import type { IntakeAnswerSource, IntakeData } from './intake'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
-type FlowPhase =
-  | 'asking'
-  | 'answering'
-  | 'confirming'
-  | 'summary'
-  | 'prescription'
-  | 'download'
+type FlowPhase = 'asking' | 'listening' | 'summary' | 'prescription' | 'download'
+
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext
+  }
+}
 
 function playPlaceholderTone() {
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
@@ -31,13 +31,7 @@ function playPlaceholderTone() {
     oscillator.stop(audio.currentTime + 0.1)
     window.setTimeout(() => void audio.close(), 180)
   } catch {
-    // Some browsers block audio until a user gesture; visual state still advances.
-  }
-}
-
-declare global {
-  interface Window {
-    webkitAudioContext?: typeof AudioContext
+    // Browser audio may wait for a user gesture; the visual flow still continues.
   }
 }
 
@@ -153,49 +147,6 @@ function SelfView({ language }: { language: LanguageKey }) {
   )
 }
 
-export function SpeechHarness({ language }: { language: LanguageKey }) {
-  const copy = content[language].speech
-  const speech = useSpeechRecognition({ language })
-
-  return (
-    <section className="stt-harness" data-testid="stt-harness" aria-label={copy.harnessTitle}>
-      <div className="stt-copy">
-        <strong>{copy.harnessTitle}</strong>
-        <span>{copy.disclosure}</span>
-      </div>
-      <div className="stt-actions">
-        <button
-          type="button"
-          className="secondary-action"
-          onClick={() => speech.start()}
-          disabled={speech.isListening || !speech.isSupported}
-        >
-          {copy.harnessStart}
-        </button>
-        <button
-          type="button"
-          className="secondary-action"
-          onClick={speech.stop}
-          disabled={!speech.isListening}
-        >
-          {copy.harnessStop}
-        </button>
-        <button type="button" className="secondary-action" onClick={speech.reset}>
-          {copy.harnessReset}
-        </button>
-      </div>
-      <p className="stt-meta">
-        {speech.isSupported
-          ? `${speech.recognitionLanguage} · ${speech.status}`
-          : copy.unsupported}
-      </p>
-      <p className="stt-transcript" aria-live="polite">
-        {speech.transcript || speech.lastError?.message || copy.harnessPlaceholder}
-      </p>
-    </section>
-  )
-}
-
 function TalkShell({
   language,
   onBack,
@@ -206,114 +157,89 @@ function TalkShell({
   const copy = content[language].talk
   const [phase, setPhase] = useState<FlowPhase>('asking')
   const [questionIndex, setQuestionIndex] = useState(0)
-  const [answerDraft, setAnswerDraft] = useState('')
   const [typedAnswer, setTypedAnswer] = useState('')
   const [useTypedFallback, setUseTypedFallback] = useState(false)
-  const [answerSource, setAnswerSource] = useState<IntakeAnswerSource>('speech')
   const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
   const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null)
-  const speech = useSpeechRecognition({ language })
+  const speech = useSpeechRecognition({
+    language,
+    continuous: true,
+    initialSilenceTimeoutMs: 8500,
+    endOfSpeechTimeoutMs: 2100,
+    autoStopOnFinal: false,
+  })
   const activeQuestion = copy.questions[questionIndex]
   const activeField = activeQuestion.field
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
-
-  useEffect(() => {
-    if (phase === 'asking') {
-      playPlaceholderTone()
-    }
-  }, [phase, questionIndex])
+  const captureTokenRef = useRef('')
 
   useEffect(() => {
     setIntakeData(createEmptyIntake(language))
     setQuestionIndex(0)
-    setAnswerDraft('')
     setTypedAnswer('')
     setUseTypedFallback(false)
-    setAnswerSource('speech')
     setReviewingQuestionIndex(null)
     setPhase('asking')
+    captureTokenRef.current = ''
     speech.reset()
   }, [language])
 
   useEffect(() => {
-    if (phase === 'answering' && speech.status === 'complete' && speech.transcript) {
-      setAnswerDraft(speech.transcript)
-      setAnswerSource('speech')
-      setUseTypedFallback(false)
-      setPhase('confirming')
-    }
-  }, [phase, speech.status, speech.transcript])
+    if (phase !== 'asking') return
+
+    playPlaceholderTone()
+    setTypedAnswer('')
+    setUseTypedFallback(false)
+    captureTokenRef.current = ''
+    speech.reset()
+
+    const timer = window.setTimeout(() => {
+      setPhase('listening')
+      const started = speech.start()
+      if (!started) {
+        setUseTypedFallback(true)
+      }
+    }, 450)
+
+    return () => window.clearTimeout(timer)
+  }, [phase, questionIndex, reviewingQuestionIndex])
 
   useEffect(() => {
-    if (phase === 'answering' && speech.status === 'unsupported') {
-      setUseTypedFallback(true)
-    }
-  }, [phase, speech.status])
-
-  function beginAnswer() {
-    setAnswerDraft('')
-    setTypedAnswer('')
-    setUseTypedFallback(false)
-    speech.reset()
-    setPhase('answering')
-    const started = speech.start()
-    if (!started) {
-      setUseTypedFallback(true)
-    }
-  }
-
-  function finishSpeaking() {
-    const transcript = speech.transcript.trim()
-    if (transcript) {
-      speech.stop()
-      setAnswerDraft(transcript)
-      setAnswerSource('speech')
-      setUseTypedFallback(false)
-      setPhase('confirming')
+    if (phase !== 'listening') return
+    if (speech.status === 'complete' && speech.transcript.trim()) {
+      captureAnswer(speech.transcript, 'speech')
       return
     }
-    speech.stop()
-  }
+    if (
+      speech.status === 'unsupported' ||
+      speech.lastError?.shouldUseTypedFallback ||
+      speech.status === 'error'
+    ) {
+      setUseTypedFallback(true)
+    }
+  }, [phase, speech.status, speech.transcript, speech.lastError])
 
-  function submitTypedAnswer() {
-    const answer = typedAnswer.trim()
+  function captureAnswer(rawAnswer: string, source: IntakeAnswerSource) {
+    const answer = rawAnswer.trim()
     if (!answer) return
-    speech.stop()
-    setAnswerDraft(answer)
-    setAnswerSource('typed')
-    setUseTypedFallback(true)
-    setPhase('confirming')
-  }
 
-  function redoAnswer() {
-    setAnswerDraft('')
+    const captureToken = `${activeField}:${source}:${answer}`
+    if (captureTokenRef.current === captureToken) return
+    captureTokenRef.current = captureToken
+
+    speech.stop()
+    setIntakeData((current) => withIntakeAnswer(current, activeField, answer, source))
     setTypedAnswer('')
     setUseTypedFallback(false)
     speech.reset()
-    setPhase('answering')
-    const started = speech.start()
-    if (!started) {
-      setUseTypedFallback(true)
-    }
-  }
 
-  function confirmAnswer() {
-    const answer = answerDraft.trim()
-    if (!answer) return
-    setIntakeData((current) =>
-      withIntakeAnswer(current, activeField, answer, answerSource),
-    )
-    speech.reset()
     if (reviewingQuestionIndex !== null) {
       setReviewingQuestionIndex(null)
       setPhase('summary')
       return
     }
-    advanceFromAnswer()
-  }
 
-  function advanceFromAnswer() {
     if (questionIndex < totalQuestions - 1) {
       setQuestionIndex((current) => current + 1)
       setPhase('asking')
@@ -323,14 +249,17 @@ function TalkShell({
     setPhase('summary')
   }
 
+  function submitTypedAnswer() {
+    captureAnswer(typedAnswer, 'typed')
+  }
+
   function restartScript() {
     setQuestionIndex(0)
     setIntakeData(createEmptyIntake(language))
-    setAnswerDraft('')
     setTypedAnswer('')
     setUseTypedFallback(false)
-    setAnswerSource('speech')
     setReviewingQuestionIndex(null)
+    captureTokenRef.current = ''
     speech.reset()
     setPhase('asking')
   }
@@ -338,10 +267,9 @@ function TalkShell({
   function reanswerField(fieldIndex: number) {
     setReviewingQuestionIndex(fieldIndex)
     setQuestionIndex(fieldIndex)
-    setAnswerDraft('')
     setTypedAnswer('')
     setUseTypedFallback(false)
-    setAnswerSource('speech')
+    captureTokenRef.current = ''
     speech.reset()
     setPhase('asking')
   }
@@ -374,11 +302,14 @@ function TalkShell({
             })}
           </div>
           <p className="answer-count">
-            {
-              Object.values(intakeData.answers).filter((answer) => answer.value).length
-            }/{totalQuestions}
+            {Object.values(intakeData.answers).filter((answer) => answer.value).length}/
+            {totalQuestions}
           </p>
-          <button type="button" className="primary-action compact" onClick={() => setPhase('prescription')}>
+          <button
+            type="button"
+            className="primary-action compact"
+            onClick={() => setPhase('prescription')}
+          >
             {copy.nextQuestion}
           </button>
         </>
@@ -391,7 +322,11 @@ function TalkShell({
           <p className="eyebrow">{copy.prescriptionTitle}</p>
           <h2 id="talk-title">{copy.prescriptionTitle}</h2>
           <p>{copy.prescriptionBody}</p>
-          <button type="button" className="primary-action compact" onClick={() => setPhase('download')}>
+          <button
+            type="button"
+            className="primary-action compact"
+            onClick={() => setPhase('download')}
+          >
             {copy.nextQuestion}
           </button>
         </>
@@ -427,107 +362,66 @@ function TalkShell({
     return (
       <>
         <div className="flow-topline">
-          <span>
-            {phase === 'asking'
-              ? copy.askingLabel
-              : phase === 'confirming'
-                ? copy.confirmPrompt
-                : copy.answeringLabel}
-          </span>
+          <span>{phase === 'asking' ? copy.askingLabel : copy.answeringLabel}</span>
           <span>
             {questionIndex + 1}/{totalQuestions}
           </span>
         </div>
         <h2 id="talk-title">{activeQuestion.text}</h2>
-        {phase !== 'confirming' ? (
-          <div className={`shell-meter ${phase === 'answering' ? 'hot' : ''}`} aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        ) : null}
+        <div className={`shell-meter ${phase === 'listening' ? 'hot' : ''}`} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="progress-track" aria-label={`Question progress ${progress}%`}>
           <span style={{ width: `${progress}%` }} />
         </div>
-        {phase === 'asking' && (
-          <>
-            <p className="speech-disclosure">{content[language].speech.disclosure}</p>
-            <button type="button" className="primary-action compact" onClick={beginAnswer}>
-              {copy.startSpeaking}
+        <div className="answer-capture">
+          <p className="live-transcript" aria-live="polite">
+            {speech.transcript || speech.lastError?.message || copy.noTranscript}
+          </p>
+          {!useTypedFallback ? (
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => {
+                speech.stop()
+                setUseTypedFallback(true)
+              }}
+            >
+              {copy.typeInstead}
             </button>
-          </>
-        )}
-        {phase === 'answering' && (
-          <div className="answer-capture">
-            <p className="live-transcript" aria-live="polite">
-              {speech.transcript || speech.lastError?.message || copy.noTranscript}
-            </p>
-            {!useTypedFallback && (
-              <div className="answer-actions">
-                <button type="button" className="primary-action compact" onClick={finishSpeaking}>
-                  {copy.doneSpeaking}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-action"
-                  onClick={() => {
-                    speech.stop()
-                    setUseTypedFallback(true)
-                  }}
-                >
-                  {copy.typeInstead}
-                </button>
+          ) : null}
+          {(useTypedFallback || speech.lastError?.shouldUseTypedFallback) && (
+            <div className="typed-fallback">
+              <div className="fallback-copy">
+                <strong>{copy.fallbackTitle}</strong>
+                <span>{speech.lastError?.message || copy.fallbackBody}</span>
               </div>
-            )}
-            {(useTypedFallback || speech.lastError?.shouldUseTypedFallback) && (
-              <div className="typed-fallback">
-                <div className="fallback-copy">
-                  <strong>{copy.fallbackTitle}</strong>
-                  <span>{speech.lastError?.message || copy.fallbackBody}</span>
-                </div>
-                <textarea
-                  value={typedAnswer}
-                  onChange={(event) => setTypedAnswer(event.target.value)}
-                  placeholder={copy.typedPlaceholder}
-                  rows={3}
-                />
-                <button
-                  type="button"
-                  className="primary-action compact"
-                  onClick={submitTypedAnswer}
-                  disabled={!typedAnswer.trim()}
-                >
-                  {copy.confirmAnswer}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {phase === 'confirming' && (
-          <div className="confirm-answer">
-            <p className="captured-answer">{answerDraft}</p>
-            <div className="answer-actions">
-              <button type="button" className="primary-action compact" onClick={confirmAnswer}>
+              <textarea
+                value={typedAnswer}
+                onChange={(event) => setTypedAnswer(event.target.value)}
+                placeholder={copy.typedPlaceholder}
+                rows={3}
+              />
+              <button
+                type="button"
+                className="primary-action compact"
+                onClick={submitTypedAnswer}
+                disabled={!typedAnswer.trim()}
+              >
                 {copy.confirmAnswer}
               </button>
-              <button type="button" className="secondary-action" onClick={redoAnswer}>
-                {copy.redoAnswer}
-              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </>
     )
   }
 
   return (
     <section className={`talk-shell ${phase}`} aria-labelledby="talk-title">
-      <button
-        type="button"
-        className="ghost-action"
-        onClick={onBack}
-        aria-label={copy.back}
-      >
+      <button type="button" className="ghost-action" onClick={onBack} aria-label={copy.back}>
         <ArrowLeft size={20} aria-hidden="true" />
       </button>
       <div className="avatar-stage" data-testid="avatar-stage">
@@ -581,11 +475,7 @@ function App() {
           </div>
 
           <div className="entry-actions">
-            <button
-              type="button"
-              className="primary-action"
-              onClick={() => setMode('talk')}
-            >
+            <button type="button" className="primary-action" onClick={() => setMode('talk')}>
               <PhoneCall size={22} aria-hidden="true" />
               {copy.entry.cta}
             </button>

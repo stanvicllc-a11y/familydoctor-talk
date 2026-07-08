@@ -71,7 +71,9 @@ export type SpeechError = {
 
 type UseSpeechRecognitionOptions = {
   language: LanguageKey
-  silenceTimeoutMs?: number
+  continuous?: boolean
+  initialSilenceTimeoutMs?: number
+  endOfSpeechTimeoutMs?: number
   autoStopOnFinal?: boolean
 }
 
@@ -176,13 +178,17 @@ export function getRecognitionLanguage(language: LanguageKey) {
 
 export function useSpeechRecognition({
   language,
-  silenceTimeoutMs = 9000,
+  continuous = false,
+  initialSilenceTimeoutMs = 9000,
+  endOfSpeechTimeoutMs = 2200,
   autoStopOnFinal = true,
 }: UseSpeechRecognitionOptions) {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const silenceTimerRef = useRef<number | null>(null)
   const finalTranscriptRef = useRef('')
+  const lastErrorRef = useRef<SpeechError | null>(null)
   const requestedStopRef = useRef(false)
+  const heardSpeechRef = useRef(false)
   const [isSupported, setIsSupported] = useState(() => Boolean(getSpeechConstructor()))
   const [status, setStatus] = useState<SpeechStatus>(() =>
     getSpeechConstructor() ? 'idle' : 'unsupported',
@@ -200,6 +206,10 @@ export function useSpeechRecognition({
           shouldUseTypedFallback: true,
         },
   )
+
+  useEffect(() => {
+    lastErrorRef.current = lastError
+  }, [lastError])
 
   const recognitionLanguage = useMemo(() => getRecognitionLanguage(language), [language])
 
@@ -219,6 +229,7 @@ export function useSpeechRecognition({
 
   const reset = useCallback(() => {
     finalTranscriptRef.current = ''
+    heardSpeechRef.current = false
     setInterimTranscript('')
     setFinalTranscript('')
     setLastError(null)
@@ -247,12 +258,13 @@ export function useSpeechRecognition({
 
       if (resetTranscript) {
         finalTranscriptRef.current = ''
+        heardSpeechRef.current = false
         setFinalTranscript('')
         setInterimTranscript('')
       }
 
       const recognition = new Recognition()
-      recognition.continuous = false
+      recognition.continuous = continuous
       recognition.interimResults = true
       recognition.lang = recognitionLanguage
       recognition.maxAlternatives = 1
@@ -265,7 +277,7 @@ export function useSpeechRecognition({
           setLastError(getErrorDetails('no-speech'))
           requestedStopRef.current = true
           recognition.stop()
-        }, silenceTimeoutMs)
+        }, initialSilenceTimeoutMs)
       }
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -284,8 +296,13 @@ export function useSpeechRecognition({
         }
 
         if (committed.trim()) {
+          heardSpeechRef.current = true
           finalTranscriptRef.current = `${finalTranscriptRef.current} ${committed}`.trim()
           setFinalTranscript(finalTranscriptRef.current)
+        }
+
+        if (interim.trim()) {
+          heardSpeechRef.current = true
         }
 
         setInterimTranscript(interim.trim())
@@ -297,7 +314,7 @@ export function useSpeechRecognition({
           silenceTimerRef.current = window.setTimeout(() => {
             requestedStopRef.current = true
             recognition.stop()
-          }, silenceTimeoutMs)
+          }, heardSpeechRef.current ? endOfSpeechTimeoutMs : initialSilenceTimeoutMs)
         }
       }
 
@@ -319,7 +336,7 @@ export function useSpeechRecognition({
           setStatus('complete')
           return
         }
-        if (lastError || requestedStopRef.current) {
+        if (lastErrorRef.current || requestedStopRef.current) {
           setStatus((current) => (current === 'processing' ? 'idle' : current))
           return
         }
@@ -342,10 +359,11 @@ export function useSpeechRecognition({
     [
       autoStopOnFinal,
       clearSilenceTimer,
+      continuous,
+      endOfSpeechTimeoutMs,
+      initialSilenceTimeoutMs,
       language,
-      lastError,
       recognitionLanguage,
-      silenceTimeoutMs,
     ],
   )
 
