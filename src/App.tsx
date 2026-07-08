@@ -525,7 +525,7 @@ function TalkShell({
   }
 
   return (
-    <section className="talk-shell" aria-labelledby="talk-title">
+    <section className={`talk-shell ${phase}`} aria-labelledby="talk-title">
       <button
         type="button"
         className="ghost-action"

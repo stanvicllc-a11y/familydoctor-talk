@@ -708,10 +708,22 @@ h1 {
   }
 
   .summary-list {
-    max-height: 178px;
+    max-height: 136px;
   }
 
   .summary-item {
     grid-template-columns: 1fr;
+  }
+
+  .talk-shell.summary,
+  .talk-shell.prescription,
+  .talk-shell.download {
+    grid-template-rows: minmax(118px, 0.62fr) auto;
+  }
+
+  .talk-shell.summary .avatar-stage,
+  .talk-shell.prescription .avatar-stage,
+  .talk-shell.download .avatar-stage {
+    min-height: 118px;
   }
 }
