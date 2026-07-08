@@ -37,6 +37,7 @@ function SelfView({ language }: { language: LanguageKey }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const shellRef = useRef<HTMLDivElement | null>(null)
   const [status, setStatus] = useState<SelfViewStatus>('loading')
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
@@ -63,6 +64,7 @@ function SelfView({ language }: { language: LanguageKey }) {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
         }
+        setCameraStream(stream)
         setStatus('ready')
       } catch {
         setStatus('blocked')
@@ -76,6 +78,12 @@ function SelfView({ language }: { language: LanguageKey }) {
       stream?.getTracks().forEach((track) => track.stop())
     }
   }, [])
+
+  useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream
+    }
+  }, [cameraStream])
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     const rect = shellRef.current?.getBoundingClientRect()
