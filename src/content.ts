@@ -39,14 +39,21 @@ type LanguageContent = {
     nextQuestion: string
     summaryTitle: string
     summaryBody: string
+    closingSpoken: string
+    summaryInvitation: string
+    summaryListeningStatus: string
+    summaryTypeInstead: string
+    editPlaceholder: string
+    applyEdit: string
+    editApplied: string
+    editNoted: string
+    openEditLabel: string
     prescriptionTitle: string
     prescriptionBody: string
     downloadTitle: string
     downloadBody: string
     downloadCta: string
     restart: string
-    reviewPrompt: string
-    reanswer: string
     missingAnswer: string
     fieldLabels: Record<IntakeFieldKey, string>
     questions: IntakeQuestion[]
@@ -94,6 +101,16 @@ export const content: Record<LanguageKey, LanguageContent> = {
       summaryTitle: 'Intake summary',
       summaryBody:
         'This screen will later summarize the real intake. For now it proves the handoff after the scripted questions.',
+      closingSpoken:
+        'Thank you. I have a careful summary now. Before we continue, is there anything you want to change or add?',
+      summaryInvitation: 'Anything you want to change or add before we continue?',
+      summaryListeningStatus: 'Listening for one change or addition.',
+      summaryTypeInstead: 'Type a change',
+      editPlaceholder: 'Say or type one change or addition',
+      applyEdit: 'Apply change',
+      editApplied: 'I added that to the matching part of your summary.',
+      editNoted: 'I noted that as an extra change for the doctor.',
+      openEditLabel: 'Patient change or addition',
       prescriptionTitle: 'Placeholder prescription',
       prescriptionBody:
         'No prescription is generated in this staging shell. This is only the future review surface.',
@@ -102,8 +119,6 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'The download button creates a local placeholder text file. No patient data is uploaded.',
       downloadCta: 'Download placeholder',
       restart: 'Restart script',
-      reviewPrompt: 'Review what I heard. Tap any field to answer again.',
-      reanswer: 'Re-answer',
       missingAnswer: 'No answer captured yet',
       fieldLabels: {
         chiefComplaint: 'Main problem',
@@ -201,6 +216,16 @@ export const content: Record<LanguageKey, LanguageContent> = {
       summaryTitle: 'Intake summary',
       summaryBody:
         'Baad mein yahan real intake ka summary dikhega. Abhi yeh scripted questions ke baad handoff prove karta hai.',
+      closingSpoken:
+        'Thank you. Mere paas ab careful summary hai. Continue karne se pehle, kuch change ya add karna hai?',
+      summaryInvitation: 'Continue karne se pehle kuch change ya add karna hai?',
+      summaryListeningStatus: 'Ek change ya addition ke liye sun raha hoon.',
+      summaryTypeInstead: 'Change type karein',
+      editPlaceholder: 'Ek change ya addition boliye ya type karein',
+      applyEdit: 'Change apply karein',
+      editApplied: 'Maine yeh matching summary part mein add kar diya.',
+      editNoted: 'Maine yeh doctor ke liye extra change ke roop mein note kar liya.',
+      openEditLabel: 'Patient change ya addition',
       prescriptionTitle: 'Placeholder prescription',
       prescriptionBody:
         'Is staging shell mein prescription generate nahi hota. Yeh sirf future review surface hai.',
@@ -209,8 +234,6 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'Download button ek local placeholder text file banata hai. Patient data upload nahi hota.',
       downloadCta: 'Placeholder download karein',
       restart: 'Script restart karein',
-      reviewPrompt: 'Maine jo suna, review karein. Kisi bhi field ko dobara answer kar sakte hain.',
-      reanswer: 'Dobara answer',
       missingAnswer: 'Abhi answer capture nahi hua',
       fieldLabels: {
         chiefComplaint: 'Main problem',

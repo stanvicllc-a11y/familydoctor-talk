@@ -3,7 +3,7 @@ import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
 import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
-import type { IntakeAnswerSource, IntakeData } from './intake'
+import type { IntakeAnswerSource, IntakeData, IntakeFieldKey } from './intake'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
@@ -63,6 +63,40 @@ function buildKeywordReflection(answer: string, language: LanguageKey, fallback:
   return language === 'en'
     ? `I am noting the ${keywordText} part and keeping the full picture together.`
     : `Main ${keywordText} wali baat note kar raha hoon aur full picture saath mein rakh raha hoon.`
+}
+
+function speakClosing(text: string, language: LanguageKey) {
+  if (!('speechSynthesis' in window)) return
+
+  try {
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = language === 'en' ? 'en-IN' : 'hi-IN'
+    utterance.rate = 0.94
+    window.speechSynthesis.speak(utterance)
+  } catch {
+    // Speech synthesis is a progressive enhancement; the written closing remains visible.
+  }
+}
+
+function inferEditField(editText: string): IntakeFieldKey | null {
+  const normalizedText = editText.toLowerCase()
+  const matches = (terms: string[]) => terms.some((term) => normalizedText.includes(term))
+
+  if (matches(['allerg', 'allergy'])) return 'allergies'
+  if (matches(['medicine', 'medication', 'tablet', 'dawai', 'supplement'])) return 'currentMedications'
+  if (matches(['started', 'since', 'duration', 'kab se', 'worse', 'better'])) return 'duration'
+  if (matches(['severe', 'severity', 'bad', 'impact'])) return 'severity'
+  if (matches(['fever', 'cough', 'pain', 'vomit', 'breath', 'symptom', 'dard'])) {
+    return 'associatedSymptoms'
+  }
+  if (matches(['tried', 'remedy', 'home', 'took', 'liya'])) return 'triedRemedies'
+  if (matches(['travel', 'food', 'khaya'])) return 'recentTravel'
+  if (matches(['sick', 'contact', 'around', 'aas-paas'])) return 'sickContacts'
+  if (matches(['history', 'condition', 'surgery'])) return 'pastHistory'
+  if (matches(['main', 'problem', 'complaint'])) return 'chiefComplaint'
+
+  return null
 }
 
 function SelfView({ language }: { language: LanguageKey }) {
@@ -190,8 +224,11 @@ function TalkShell({
   const [typedAnswer, setTypedAnswer] = useState('')
   const [useTypedFallback, setUseTypedFallback] = useState(false)
   const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
-  const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null)
   const [reflectionText, setReflectionText] = useState('')
+  const [summaryEditDraft, setSummaryEditDraft] = useState('')
+  const [summaryUseTypedFallback, setSummaryUseTypedFallback] = useState(false)
+  const [openEditNote, setOpenEditNote] = useState('')
+  const [summaryEditMessage, setSummaryEditMessage] = useState('')
   const speech = useSpeechRecognition({
     language,
     continuous: true,
@@ -205,15 +242,24 @@ function TalkShell({
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
   const hiddenTranscriptRef = useRef<string[]>([])
+  const summarySpokenRef = useRef(false)
+  const summaryEditAttemptRef = useRef(false)
+  const summaryEditTokenRef = useRef('')
 
   useEffect(() => {
     setIntakeData(createEmptyIntake(language))
     setQuestionIndex(0)
     setTypedAnswer('')
     setUseTypedFallback(false)
-    setReviewingQuestionIndex(null)
     setReflectionText('')
+    setSummaryEditDraft('')
+    setSummaryUseTypedFallback(false)
+    setOpenEditNote('')
+    setSummaryEditMessage('')
     hiddenTranscriptRef.current = []
+    summarySpokenRef.current = false
+    summaryEditAttemptRef.current = false
+    summaryEditTokenRef.current = ''
     setPhase('asking')
     captureTokenRef.current = ''
     speech.reset()
@@ -237,7 +283,7 @@ function TalkShell({
     }, 450)
 
     return () => window.clearTimeout(timer)
-  }, [phase, questionIndex, reviewingQuestionIndex])
+  }, [phase, questionIndex])
 
   useEffect(() => {
     if (phase !== 'listening') return
@@ -253,6 +299,45 @@ function TalkShell({
       setUseTypedFallback(true)
     }
   }, [phase, speech.status, speech.transcript, speech.lastError])
+
+  useEffect(() => {
+    if (phase !== 'summary') return
+
+    if (!summarySpokenRef.current) {
+      summarySpokenRef.current = true
+      speakClosing(copy.closingSpoken, language)
+    }
+
+    if (summaryEditAttemptRef.current || summaryEditMessage) return
+
+    summaryEditAttemptRef.current = true
+    setSummaryUseTypedFallback(false)
+    speech.reset()
+
+    const timer = window.setTimeout(() => {
+      const started = speech.start()
+      if (!started) {
+        setSummaryUseTypedFallback(true)
+      }
+    }, 900)
+
+    return () => window.clearTimeout(timer)
+  }, [phase, summaryEditMessage, language, copy.closingSpoken])
+
+  useEffect(() => {
+    if (phase !== 'summary' || summaryEditMessage) return
+    if (speech.status === 'complete' && speech.transcript.trim()) {
+      applySummaryEdit(speech.transcript, 'speech')
+      return
+    }
+    if (
+      speech.status === 'unsupported' ||
+      speech.lastError?.shouldUseTypedFallback ||
+      speech.status === 'error'
+    ) {
+      setSummaryUseTypedFallback(true)
+    }
+  }, [phase, summaryEditMessage, speech.status, speech.transcript, speech.lastError])
 
   function captureAnswer(rawAnswer: string, source: IntakeAnswerSource) {
     const answer = rawAnswer.trim()
@@ -273,19 +358,42 @@ function TalkShell({
     setUseTypedFallback(false)
     speech.reset()
 
-    if (reviewingQuestionIndex !== null) {
-      setReviewingQuestionIndex(null)
-      setPhase('summary')
-      return
-    }
-
     if (questionIndex < totalQuestions - 1) {
       setQuestionIndex((current) => current + 1)
       setPhase('asking')
       return
     }
 
+    summaryEditAttemptRef.current = false
     setPhase('summary')
+  }
+
+  function applySummaryEdit(rawEdit: string, source: IntakeAnswerSource) {
+    const edit = rawEdit.trim()
+    if (!edit) return
+
+    const editToken = `${source}:${edit}`
+    if (summaryEditTokenRef.current === editToken) return
+    summaryEditTokenRef.current = editToken
+
+    speech.stop()
+    hiddenTranscriptRef.current = [
+      ...hiddenTranscriptRef.current,
+      `Patient ${source} edit: ${edit}`,
+    ]
+
+    const field = inferEditField(edit)
+    if (field) {
+      setIntakeData((current) => withIntakeAnswer(current, field, edit, source))
+      setSummaryEditMessage(copy.editApplied)
+    } else {
+      setOpenEditNote(edit)
+      setSummaryEditMessage(copy.editNoted)
+    }
+
+    setSummaryUseTypedFallback(false)
+    setSummaryEditDraft('')
+    speech.reset()
   }
 
   function submitTypedAnswer() {
@@ -297,20 +405,15 @@ function TalkShell({
     setIntakeData(createEmptyIntake(language))
     setTypedAnswer('')
     setUseTypedFallback(false)
-    setReviewingQuestionIndex(null)
     setReflectionText('')
+    setSummaryEditDraft('')
+    setSummaryUseTypedFallback(false)
+    setOpenEditNote('')
+    setSummaryEditMessage('')
     hiddenTranscriptRef.current = []
-    captureTokenRef.current = ''
-    speech.reset()
-    setPhase('asking')
-  }
-
-  function reanswerField(fieldIndex: number) {
-    setReviewingQuestionIndex(fieldIndex)
-    setQuestionIndex(fieldIndex)
-    setTypedAnswer('')
-    setUseTypedFallback(false)
-    setReflectionText('')
+    summarySpokenRef.current = false
+    summaryEditAttemptRef.current = false
+    summaryEditTokenRef.current = ''
     captureTokenRef.current = ''
     speech.reset()
     setPhase('asking')
@@ -322,27 +425,73 @@ function TalkShell({
         <>
           <p className="eyebrow">{copy.summaryTitle}</p>
           <h2 id="talk-title">{copy.summaryTitle}</h2>
-          <p>{copy.reviewPrompt}</p>
-          <div className="summary-list" data-testid="intake-summary">
+          <p>{copy.closingSpoken}</p>
+          <div className="summary-manuscript" data-testid="intake-summary">
             {INTAKE_FIELD_KEYS.map((field, fieldIndex) => {
               const answer = intakeData.answers[field]
               return (
-                <article className="summary-item" key={field}>
-                  <div>
-                    <strong>{copy.fieldLabels[field]}</strong>
-                    <p>{answer.value || copy.missingAnswer}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={() => reanswerField(fieldIndex)}
-                  >
-                    {copy.reanswer}
-                  </button>
+                <article
+                  className="summary-line"
+                  key={field}
+                  style={{ animationDelay: `${fieldIndex * 95}ms` }}
+                >
+                  <strong>{copy.fieldLabels[field]}</strong>
+                  <p>{answer.value || copy.missingAnswer}</p>
                 </article>
               )
             })}
+            {openEditNote ? (
+              <article
+                className="summary-line"
+                style={{ animationDelay: `${INTAKE_FIELD_KEYS.length * 95}ms` }}
+              >
+                <strong>{copy.openEditLabel}</strong>
+                <p>{openEditNote}</p>
+              </article>
+            ) : null}
           </div>
+          <section className="summary-edit" aria-label={copy.summaryInvitation}>
+            <p>{summaryEditMessage || copy.summaryInvitation}</p>
+            {!summaryEditMessage ? (
+              <>
+                <p className="listening-status">
+                  {summaryUseTypedFallback
+                    ? speech.lastError?.message || copy.fallbackBody
+                    : copy.summaryListeningStatus}
+                </p>
+                {!summaryUseTypedFallback ? (
+                  <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={() => {
+                      speech.stop()
+                      setSummaryUseTypedFallback(true)
+                    }}
+                  >
+                    {copy.summaryTypeInstead}
+                  </button>
+                ) : null}
+                {summaryUseTypedFallback ? (
+                  <div className="typed-fallback">
+                    <textarea
+                      value={summaryEditDraft}
+                      onChange={(event) => setSummaryEditDraft(event.target.value)}
+                      placeholder={copy.editPlaceholder}
+                      rows={3}
+                    />
+                    <button
+                      type="button"
+                      className="primary-action compact"
+                      onClick={() => applySummaryEdit(summaryEditDraft, 'typed')}
+                      disabled={!summaryEditDraft.trim()}
+                    >
+                      {copy.applyEdit}
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </section>
           <p className="answer-count">
             {Object.values(intakeData.answers).filter((answer) => answer.value).length}/
             {totalQuestions}
