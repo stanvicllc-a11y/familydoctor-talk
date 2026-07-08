@@ -5,7 +5,13 @@ import { content, type LanguageKey } from './content'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
-type FlowPhase = 'asking' | 'answering' | 'summary' | 'prescription' | 'download'
+type FlowPhase =
+  | 'asking'
+  | 'answering'
+  | 'confirming'
+  | 'summary'
+  | 'prescription'
+  | 'download'
 
 function playPlaceholderTone() {
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
@@ -202,6 +208,11 @@ function TalkShell({
   const copy = content[language].talk
   const [phase, setPhase] = useState<FlowPhase>('asking')
   const [questionIndex, setQuestionIndex] = useState(0)
+  const [answerDraft, setAnswerDraft] = useState('')
+  const [typedAnswer, setTypedAnswer] = useState('')
+  const [useTypedFallback, setUseTypedFallback] = useState(false)
+  const [capturedAnswers, setCapturedAnswers] = useState<string[]>([])
+  const speech = useSpeechRecognition({ language })
   const activeQuestion = copy.questions[questionIndex]
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
@@ -211,6 +222,77 @@ function TalkShell({
       playPlaceholderTone()
     }
   }, [phase, questionIndex])
+
+  useEffect(() => {
+    if (phase === 'answering' && speech.status === 'complete' && speech.transcript) {
+      setAnswerDraft(speech.transcript)
+      setUseTypedFallback(false)
+      setPhase('confirming')
+    }
+  }, [phase, speech.status, speech.transcript])
+
+  useEffect(() => {
+    if (phase === 'answering' && speech.status === 'unsupported') {
+      setUseTypedFallback(true)
+    }
+  }, [phase, speech.status])
+
+  function beginAnswer() {
+    setAnswerDraft('')
+    setTypedAnswer('')
+    setUseTypedFallback(false)
+    speech.reset()
+    setPhase('answering')
+    const started = speech.start()
+    if (!started) {
+      setUseTypedFallback(true)
+    }
+  }
+
+  function finishSpeaking() {
+    const transcript = speech.transcript.trim()
+    if (transcript) {
+      speech.stop()
+      setAnswerDraft(transcript)
+      setUseTypedFallback(false)
+      setPhase('confirming')
+      return
+    }
+    speech.stop()
+  }
+
+  function submitTypedAnswer() {
+    const answer = typedAnswer.trim()
+    if (!answer) return
+    speech.stop()
+    setAnswerDraft(answer)
+    setUseTypedFallback(true)
+    setPhase('confirming')
+  }
+
+  function redoAnswer() {
+    setAnswerDraft('')
+    setTypedAnswer('')
+    setUseTypedFallback(false)
+    speech.reset()
+    setPhase('answering')
+    const started = speech.start()
+    if (!started) {
+      setUseTypedFallback(true)
+    }
+  }
+
+  function confirmAnswer() {
+    const answer = answerDraft.trim()
+    if (!answer) return
+    setCapturedAnswers((current) => {
+      const next = [...current]
+      next[questionIndex] = answer
+      return next
+    })
+    speech.reset()
+    advanceFromAnswer()
+  }
 
   function advanceFromAnswer() {
     if (questionIndex < totalQuestions - 1) {
@@ -224,6 +306,11 @@ function TalkShell({
 
   function restartScript() {
     setQuestionIndex(0)
+    setCapturedAnswers([])
+    setAnswerDraft('')
+    setTypedAnswer('')
+    setUseTypedFallback(false)
+    speech.reset()
     setPhase('asking')
   }
 
@@ -234,6 +321,9 @@ function TalkShell({
           <p className="eyebrow">{copy.summaryTitle}</p>
           <h2 id="talk-title">{copy.summaryTitle}</h2>
           <p>{copy.summaryBody}</p>
+          <p className="answer-count">
+            {capturedAnswers.filter(Boolean).length}/{totalQuestions}
+          </p>
           <button type="button" className="primary-action compact" onClick={() => setPhase('prescription')}>
             {copy.nextQuestion}
           </button>
@@ -283,28 +373,94 @@ function TalkShell({
     return (
       <>
         <div className="flow-topline">
-          <span>{phase === 'asking' ? copy.askingLabel : copy.answeringLabel}</span>
+          <span>
+            {phase === 'asking'
+              ? copy.askingLabel
+              : phase === 'confirming'
+                ? copy.confirmPrompt
+                : copy.answeringLabel}
+          </span>
           <span>
             {questionIndex + 1}/{totalQuestions}
           </span>
         </div>
         <h2 id="talk-title">{activeQuestion}</h2>
-        <div className={`shell-meter ${phase === 'answering' ? 'hot' : ''}`} aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
+        {phase !== 'confirming' ? (
+          <div className={`shell-meter ${phase === 'answering' ? 'hot' : ''}`} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        ) : null}
         <div className="progress-track" aria-label={`Question progress ${progress}%`}>
           <span style={{ width: `${progress}%` }} />
         </div>
-        {phase === 'asking' ? (
-          <button type="button" className="primary-action compact" onClick={() => setPhase('answering')}>
-            {copy.tapToAnswer}
-          </button>
-        ) : (
-          <button type="button" className="primary-action compact" onClick={advanceFromAnswer}>
-            {copy.simulateAnswer}
-          </button>
+        {phase === 'asking' && (
+          <>
+            <p className="speech-disclosure">{content[language].speech.disclosure}</p>
+            <button type="button" className="primary-action compact" onClick={beginAnswer}>
+              {copy.startSpeaking}
+            </button>
+          </>
+        )}
+        {phase === 'answering' && (
+          <div className="answer-capture">
+            <p className="live-transcript" aria-live="polite">
+              {speech.transcript || speech.lastError?.message || copy.noTranscript}
+            </p>
+            {!useTypedFallback && (
+              <div className="answer-actions">
+                <button type="button" className="primary-action compact" onClick={finishSpeaking}>
+                  {copy.doneSpeaking}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => {
+                    speech.stop()
+                    setUseTypedFallback(true)
+                  }}
+                >
+                  {copy.typeInstead}
+                </button>
+              </div>
+            )}
+            {(useTypedFallback || speech.lastError?.shouldUseTypedFallback) && (
+              <div className="typed-fallback">
+                <div className="fallback-copy">
+                  <strong>{copy.fallbackTitle}</strong>
+                  <span>{speech.lastError?.message || copy.fallbackBody}</span>
+                </div>
+                <textarea
+                  value={typedAnswer}
+                  onChange={(event) => setTypedAnswer(event.target.value)}
+                  placeholder={copy.typedPlaceholder}
+                  rows={3}
+                />
+                <button
+                  type="button"
+                  className="primary-action compact"
+                  onClick={submitTypedAnswer}
+                  disabled={!typedAnswer.trim()}
+                >
+                  {copy.confirmAnswer}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {phase === 'confirming' && (
+          <div className="confirm-answer">
+            <p className="captured-answer">{answerDraft}</p>
+            <div className="answer-actions">
+              <button type="button" className="primary-action compact" onClick={confirmAnswer}>
+                {copy.confirmAnswer}
+              </button>
+              <button type="button" className="secondary-action" onClick={redoAnswer}>
+                {copy.redoAnswer}
+              </button>
+            </div>
+          </div>
         )}
       </>
     )

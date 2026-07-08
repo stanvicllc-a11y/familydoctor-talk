@@ -425,6 +425,74 @@ h1 {
   font-size: 13px;
 }
 
+.speech-disclosure {
+  color: rgba(248, 250, 248, 0.72);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.answer-capture,
+.confirm-answer,
+.typed-fallback {
+  display: grid;
+  gap: 8px;
+}
+
+.live-transcript,
+.captured-answer {
+  min-height: 54px;
+  display: grid;
+  place-items: center start;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8faf8;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.answer-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+  gap: 8px;
+}
+
+.typed-fallback textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 10px;
+  color: #10282e;
+  background: #f8faf8;
+  font: inherit;
+  font-size: 14px;
+}
+
+.typed-fallback textarea:focus {
+  outline: 3px solid #f6ba4f;
+  outline-offset: 2px;
+}
+
+.fallback-copy {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.fallback-copy span,
+.answer-count {
+  color: rgba(248, 250, 248, 0.72);
+}
+
+.answer-count {
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .flow-topline {
   display: flex;
   align-items: center;
@@ -464,6 +532,12 @@ h1 {
   color: #f8faf8;
   background: rgba(255, 255, 255, 0.12);
   font-weight: 800;
+}
+
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 @keyframes breathe {
@@ -583,5 +657,15 @@ h1 {
 
   .conversation-panel > p:not(.eyebrow) {
     font-size: 14px;
+  }
+
+  .live-transcript,
+  .captured-answer {
+    min-height: 48px;
+    font-size: 14px;
+  }
+
+  .answer-actions {
+    grid-template-columns: 1fr;
   }
 }
