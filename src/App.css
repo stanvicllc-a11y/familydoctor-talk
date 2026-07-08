@@ -121,6 +121,61 @@ h1 {
   gap: 14px;
 }
 
+.stt-harness {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(7, 24, 30, 0.48);
+}
+
+.stt-copy {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.stt-copy span,
+.stt-meta {
+  color: rgba(248, 250, 248, 0.72);
+}
+
+.stt-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.stt-actions .secondary-action {
+  min-height: 38px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.stt-actions .secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.stt-meta {
+  font-size: 12px;
+}
+
+.stt-transcript {
+  min-height: 42px;
+  display: grid;
+  place-items: center start;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8faf8;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .primary-action {
   width: min(100%, 360px);
   min-height: 56px;
@@ -478,7 +533,7 @@ h1 {
   .entry-screen {
     min-height: calc(100svh - 66px);
     padding: 20px 16px 24px;
-    gap: 24px;
+    gap: 18px;
   }
 
   .intro {
@@ -487,6 +542,10 @@ h1 {
 
   .primary-action {
     width: 100%;
+  }
+
+  .stt-harness {
+    padding: 10px;
   }
 
   .talk-shell {

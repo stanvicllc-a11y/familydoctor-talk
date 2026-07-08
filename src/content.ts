@@ -11,6 +11,15 @@ type LanguageContent = {
     cta: string
     privacy: string
   }
+  speech: {
+    disclosure: string
+    harnessTitle: string
+    harnessStart: string
+    harnessStop: string
+    harnessReset: string
+    harnessPlaceholder: string
+    unsupported: string
+  }
   talk: {
     eyebrow: string
     title: string
@@ -51,6 +60,17 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'A private voice-first intake shell for testing the future consultation flow.',
       cta: 'Talk to a doctor',
       privacy: 'Stage build only: no recording, no upload, no backend writes.',
+    },
+    speech: {
+      disclosure:
+        'Your voice is turned into text so the doctor can understand you. Your audio is not saved by this app.',
+      harnessTitle: 'Speech test',
+      harnessStart: 'Start mic test',
+      harnessStop: 'Done',
+      harnessReset: 'Reset',
+      harnessPlaceholder: 'Transcript appears here.',
+      unsupported:
+        'Speech recognition is not available in this browser. You can still type answers later in the flow.',
     },
     talk: {
       eyebrow: 'Talk shell',
@@ -104,6 +124,17 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'Future consultation flow ke liye private voice-first intake shell.',
       cta: 'Doctor se baat karein',
       privacy: 'Stage build only: recording nahi, upload nahi, backend write nahi.',
+    },
+    speech: {
+      disclosure:
+        'Aapki awaaz ko text mein badla jaata hai taaki doctor samajh sake. Yeh app aapka audio save nahi karti.',
+      harnessTitle: 'Speech test',
+      harnessStart: 'Mic test start karein',
+      harnessStop: 'Done',
+      harnessReset: 'Reset',
+      harnessPlaceholder: 'Transcript yahan dikhega.',
+      unsupported:
+        'Is browser mein speech recognition available nahi hai. Flow mein baad mein type karke answer de sakte hain.',
     },
     talk: {
       eyebrow: 'Talk shell',

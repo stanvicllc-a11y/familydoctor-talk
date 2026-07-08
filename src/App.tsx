@@ -2,6 +2,7 @@ import { ArrowLeft, Languages, PhoneCall, ShieldCheck } from 'lucide-react'
 import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
+import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
 type FlowPhase = 'asking' | 'answering' | 'summary' | 'prescription' | 'download'
@@ -145,6 +146,49 @@ function SelfView({ language }: { language: LanguageKey }) {
         <span>{copy.localVideo}</span>
       </div>
     </div>
+  )
+}
+
+function SpeechHarness({ language }: { language: LanguageKey }) {
+  const copy = content[language].speech
+  const speech = useSpeechRecognition({ language })
+
+  return (
+    <section className="stt-harness" data-testid="stt-harness" aria-label={copy.harnessTitle}>
+      <div className="stt-copy">
+        <strong>{copy.harnessTitle}</strong>
+        <span>{copy.disclosure}</span>
+      </div>
+      <div className="stt-actions">
+        <button
+          type="button"
+          className="secondary-action"
+          onClick={() => speech.start()}
+          disabled={speech.isListening || !speech.isSupported}
+        >
+          {copy.harnessStart}
+        </button>
+        <button
+          type="button"
+          className="secondary-action"
+          onClick={speech.stop}
+          disabled={!speech.isListening}
+        >
+          {copy.harnessStop}
+        </button>
+        <button type="button" className="secondary-action" onClick={speech.reset}>
+          {copy.harnessReset}
+        </button>
+      </div>
+      <p className="stt-meta">
+        {speech.isSupported
+          ? `${speech.recognitionLanguage} · ${speech.status}`
+          : copy.unsupported}
+      </p>
+      <p className="stt-transcript" aria-live="polite">
+        {speech.transcript || speech.lastError?.message || copy.harnessPlaceholder}
+      </p>
+    </section>
   )
 }
 
@@ -342,6 +386,7 @@ function App() {
               <span>{copy.entry.privacy}</span>
             </div>
           </div>
+          <SpeechHarness language={language} />
         </section>
       ) : (
         <TalkShell language={language} onBack={() => setMode('entry')} />
