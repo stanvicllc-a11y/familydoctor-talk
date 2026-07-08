@@ -92,7 +92,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
       simulateAnswer: 'Simulate answer',
       typeInstead: 'Type instead',
       typedPlaceholder: 'Type your answer here',
-      confirmAnswer: 'Yes, continue',
+      confirmAnswer: 'Continue',
       fallbackTitle: 'Type your answer',
       fallbackBody:
         'Speech is not working here. You can type this answer and continue safely.',
@@ -207,7 +207,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
       simulateAnswer: 'Answer simulate karein',
       typeInstead: 'Type karein',
       typedPlaceholder: 'Apna answer yahan type karein',
-      confirmAnswer: 'Haan, continue',
+      confirmAnswer: 'Continue karein',
       fallbackTitle: 'Apna answer type karein',
       fallbackBody:
         'Yahan speech kaam nahi kar rahi. Aap answer type karke safely continue kar sakte hain.',
