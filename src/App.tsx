@@ -149,15 +149,11 @@ function SelfView({ language }: { language: LanguageKey }) {
           </div>
         )}
       </div>
-      <div className="self-view-label">
-        <ShieldCheck size={14} aria-hidden="true" />
-        <span>{copy.localVideo}</span>
-      </div>
     </div>
   )
 }
 
-function SpeechHarness({ language }: { language: LanguageKey }) {
+export function SpeechHarness({ language }: { language: LanguageKey }) {
   const copy = content[language].speech
   const speech = useSpeechRecognition({ language })
 
@@ -537,9 +533,7 @@ function TalkShell({
       <div className="avatar-stage" data-testid="avatar-stage">
         <div className="avatar-orbit" aria-hidden="true" />
         <div className="doctor-avatar" aria-label={copy.avatarStatus}>
-          <div className="avatar-head" />
-          <div className="avatar-body" />
-          <div className="avatar-mouth" />
+          <img src="/doctor-avatar.png" alt="" />
         </div>
       </div>
       <SelfView language={language} />
@@ -600,7 +594,6 @@ function App() {
               <span>{copy.entry.privacy}</span>
             </div>
           </div>
-          <SpeechHarness language={language} />
         </section>
       ) : (
         <TalkShell language={language} onBack={() => setMode('entry')} />

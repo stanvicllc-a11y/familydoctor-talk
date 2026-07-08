@@ -1,10 +1,26 @@
 @import 'tailwindcss';
 
 :root {
-  color: #172126;
-  background: #f6f7f3;
+  --fd-primary: #0d9488;
+  --fd-primary-dark: #0f766e;
+  --fd-primary-deep: #134e4a;
+  --fd-success: #10b981;
+  --fd-accent: #f59e0b;
+  --fd-text: #111827;
+  --fd-muted: #6b7280;
+  --fd-bg: #f9fafb;
+  --fd-mint: #f9fffe;
+  --fd-teal-50: #f0fdfa;
+  --fd-emerald-50: #ecfdf5;
+  --fd-surface: #ffffff;
+  --fd-border: #e5e7eb;
+  --fd-radius-sm: 8px;
+  --fd-radius: 12px;
+  --fd-radius-lg: 20px;
+  color: var(--fd-text);
+  background: var(--fd-bg);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -18,7 +34,7 @@
 
 html {
   min-width: 320px;
-  background: #f6f7f3;
+  background: var(--fd-bg);
 }
 
 body {
@@ -29,7 +45,7 @@ body {
 }
 
 button:focus-visible {
-  outline: 3px solid #f6ba4f;
+  outline: 3px solid var(--fd-accent);
   outline-offset: 3px;
 }
 

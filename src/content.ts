@@ -27,7 +27,6 @@ type LanguageContent = {
     title: string
     body: string
     back: string
-    localVideo: string
     cameraOff: string
     cameraDenied: string
     avatarStatus: string
@@ -90,13 +89,12 @@ export const content: Record<LanguageKey, LanguageContent> = {
     },
     talk: {
       eyebrow: 'Talk shell',
-      title: 'Dr. Maya is getting ready',
+      title: 'Dr. Arjun is ready',
       body: 'Stage 2 shell placeholder',
       back: 'Back to entry screen',
-      localVideo: 'Your video is local only and is not recorded.',
       cameraOff: 'Camera preview unavailable',
       cameraDenied: 'Camera permission denied. You can continue with preview off.',
-      avatarStatus: 'Avatar placeholder',
+      avatarStatus: 'Warm male doctor avatar',
       controlTitle: 'Intake shell',
       controlBody: 'Placeholder turn-taking is active.',
       askingLabel: 'Doctor is asking',
@@ -210,13 +208,12 @@ export const content: Record<LanguageKey, LanguageContent> = {
     },
     talk: {
       eyebrow: 'Talk shell',
-      title: 'Dr. Maya ready ho rahi hain',
+      title: 'Dr. Arjun ready hain',
       body: 'Stage 2 shell placeholder',
       back: 'Entry screen par wapas',
-      localVideo: 'Aapka video sirf local hai, record nahi hota.',
       cameraOff: 'Camera preview available nahi hai',
       cameraDenied: 'Camera permission denied. Preview off ke saath continue kar sakte hain.',
-      avatarStatus: 'Avatar placeholder',
+      avatarStatus: 'Warm male doctor avatar',
       controlTitle: 'Intake shell',
       controlBody: 'Placeholder turn-taking active hai.',
       askingLabel: 'Doctor pooch rahe hain',
