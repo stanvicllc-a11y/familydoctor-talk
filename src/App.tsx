@@ -2,7 +2,7 @@ import { ArrowLeft, Languages, PhoneCall, ShieldCheck } from 'lucide-react'
 import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
-import { createEmptyIntake, withIntakeAnswer } from './intake'
+import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
 import type { IntakeAnswerSource, IntakeData } from './intake'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
@@ -215,6 +215,7 @@ function TalkShell({
   const [useTypedFallback, setUseTypedFallback] = useState(false)
   const [answerSource, setAnswerSource] = useState<IntakeAnswerSource>('speech')
   const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
+  const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null)
   const speech = useSpeechRecognition({ language })
   const activeQuestion = copy.questions[questionIndex]
   const activeField = activeQuestion.field
@@ -234,6 +235,7 @@ function TalkShell({
     setTypedAnswer('')
     setUseTypedFallback(false)
     setAnswerSource('speech')
+    setReviewingQuestionIndex(null)
     setPhase('asking')
     speech.reset()
   }, [language])
@@ -307,6 +309,11 @@ function TalkShell({
       withIntakeAnswer(current, activeField, answer, answerSource),
     )
     speech.reset()
+    if (reviewingQuestionIndex !== null) {
+      setReviewingQuestionIndex(null)
+      setPhase('summary')
+      return
+    }
     advanceFromAnswer()
   }
 
@@ -327,6 +334,18 @@ function TalkShell({
     setTypedAnswer('')
     setUseTypedFallback(false)
     setAnswerSource('speech')
+    setReviewingQuestionIndex(null)
+    speech.reset()
+    setPhase('asking')
+  }
+
+  function reanswerField(fieldIndex: number) {
+    setReviewingQuestionIndex(fieldIndex)
+    setQuestionIndex(fieldIndex)
+    setAnswerDraft('')
+    setTypedAnswer('')
+    setUseTypedFallback(false)
+    setAnswerSource('speech')
     speech.reset()
     setPhase('asking')
   }
@@ -337,7 +356,27 @@ function TalkShell({
         <>
           <p className="eyebrow">{copy.summaryTitle}</p>
           <h2 id="talk-title">{copy.summaryTitle}</h2>
-          <p>{copy.summaryBody}</p>
+          <p>{copy.reviewPrompt}</p>
+          <div className="summary-list" data-testid="intake-summary">
+            {INTAKE_FIELD_KEYS.map((field, fieldIndex) => {
+              const answer = intakeData.answers[field]
+              return (
+                <article className="summary-item" key={field}>
+                  <div>
+                    <strong>{copy.fieldLabels[field]}</strong>
+                    <p>{answer.value || copy.missingAnswer}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={() => reanswerField(fieldIndex)}
+                  >
+                    {copy.reanswer}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
           <p className="answer-count">
             {
               Object.values(intakeData.answers).filter((answer) => answer.value).length

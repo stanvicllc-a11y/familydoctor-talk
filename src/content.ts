@@ -1,4 +1,4 @@
-import type { IntakeQuestion } from './intake'
+import type { IntakeFieldKey, IntakeQuestion } from './intake'
 
 export type LanguageKey = 'en' | 'hinglish'
 
@@ -56,6 +56,10 @@ type LanguageContent = {
     downloadBody: string
     downloadCta: string
     restart: string
+    reviewPrompt: string
+    reanswer: string
+    missingAnswer: string
+    fieldLabels: Record<IntakeFieldKey, string>
     questions: IntakeQuestion[]
   }
 }
@@ -111,7 +115,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'Speech is not working here. You can type this answer and continue safely.',
       noTranscript: "I didn't catch that. Please try again or type instead.",
       nextQuestion: 'Next question',
-      summaryTitle: 'Placeholder summary',
+      summaryTitle: 'Intake summary',
       summaryBody:
         'This screen will later summarize the real intake. For now it proves the handoff after the scripted questions.',
       prescriptionTitle: 'Placeholder prescription',
@@ -122,6 +126,21 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'The download button creates a local placeholder text file. No patient data is uploaded.',
       downloadCta: 'Download placeholder',
       restart: 'Restart script',
+      reviewPrompt: 'Review what I heard. Tap any field to answer again.',
+      reanswer: 'Re-answer',
+      missingAnswer: 'No answer captured yet',
+      fieldLabels: {
+        chiefComplaint: 'Main problem',
+        duration: 'Duration',
+        severity: 'Severity and impact',
+        associatedSymptoms: 'Other symptoms',
+        triedRemedies: 'Tried remedies or medicines',
+        allergies: 'Allergies',
+        currentMedications: 'Current medicines',
+        recentTravel: 'Recent travel or unusual food',
+        sickContacts: 'Sick contacts',
+        pastHistory: 'Long-term conditions or past surgeries',
+      },
       questions: [
         {
           field: 'chiefComplaint',
@@ -216,7 +235,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'Yahan speech kaam nahi kar rahi. Aap answer type karke safely continue kar sakte hain.',
       noTranscript: 'Mujhe clear nahi mila. Dobara boliye ya type karein.',
       nextQuestion: 'Next question',
-      summaryTitle: 'Placeholder summary',
+      summaryTitle: 'Intake summary',
       summaryBody:
         'Baad mein yahan real intake ka summary dikhega. Abhi yeh scripted questions ke baad handoff prove karta hai.',
       prescriptionTitle: 'Placeholder prescription',
@@ -227,6 +246,21 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'Download button ek local placeholder text file banata hai. Patient data upload nahi hota.',
       downloadCta: 'Placeholder download karein',
       restart: 'Script restart karein',
+      reviewPrompt: 'Maine jo suna, review karein. Kisi bhi field ko dobara answer kar sakte hain.',
+      reanswer: 'Dobara answer',
+      missingAnswer: 'Abhi answer capture nahi hua',
+      fieldLabels: {
+        chiefComplaint: 'Main problem',
+        duration: 'Duration',
+        severity: 'Severity aur impact',
+        associatedSymptoms: 'Aur symptoms',
+        triedRemedies: 'Try ki hui remedy ya medicines',
+        allergies: 'Allergies',
+        currentMedications: 'Current medicines',
+        recentTravel: 'Recent travel ya unusual food',
+        sickContacts: 'Sick contacts',
+        pastHistory: 'Long-term conditions ya past surgeries',
+      },
       questions: [
         {
           field: 'chiefComplaint',
