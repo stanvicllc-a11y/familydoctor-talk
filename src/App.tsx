@@ -1,7 +1,163 @@
 import { ArrowLeft, Languages, PhoneCall, ShieldCheck } from 'lucide-react'
-import { useState } from 'react'
+import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
+
+type SelfViewStatus = 'loading' | 'ready' | 'blocked'
+
+function SelfView({ language }: { language: LanguageKey }) {
+  const copy = content[language].talk
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const [status, setStatus] = useState<SelfViewStatus>('loading')
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [dragging, setDragging] = useState(false)
+  const dragOffset = useRef({ x: 0, y: 0 })
+
+  useEffect(() => {
+    let stream: MediaStream | null = null
+    let cancelled = false
+
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setStatus('blocked')
+        return
+      }
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: false,
+        })
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+        setStatus('ready')
+      } catch {
+        setStatus('blocked')
+      }
+    }
+
+    startCamera()
+
+    return () => {
+      cancelled = true
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+  }, [])
+
+  function startDrag(event: PointerEvent<HTMLDivElement>) {
+    const rect = shellRef.current?.getBoundingClientRect()
+    if (!rect) return
+    dragOffset.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+    setDragging(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function moveDrag(event: PointerEvent<HTMLDivElement>) {
+    if (!dragging) return
+    const width = window.innerWidth
+    const height = window.innerHeight
+    const box = shellRef.current?.getBoundingClientRect()
+    const boxWidth = box?.width ?? 120
+    const boxHeight = box?.height ?? 168
+    setPosition({
+      x: Math.min(Math.max(8, event.clientX - dragOffset.current.x), width - boxWidth - 8),
+      y: Math.min(Math.max(70, event.clientY - dragOffset.current.y), height - boxHeight - 8),
+    })
+  }
+
+  function endDrag(event: PointerEvent<HTMLDivElement>) {
+    setDragging(false)
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const hasCustomPosition = position.x !== 0 || position.y !== 0
+
+  return (
+    <div
+      ref={shellRef}
+      className={`self-view ${dragging ? 'dragging' : ''}`}
+      data-testid="self-view"
+      style={
+        hasCustomPosition
+          ? { left: `${position.x}px`, top: `${position.y}px`, right: 'auto' }
+          : undefined
+      }
+      onPointerDown={startDrag}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+    >
+      <div className="self-view-video">
+        {status === 'ready' ? (
+          <video ref={videoRef} autoPlay muted playsInline aria-label="Local camera preview" />
+        ) : (
+          <div className="camera-fallback" role="status">
+            <span>{status === 'loading' ? copy.cameraOff : copy.cameraDenied}</span>
+          </div>
+        )}
+      </div>
+      <div className="self-view-label">
+        <ShieldCheck size={14} aria-hidden="true" />
+        <span>{copy.localVideo}</span>
+      </div>
+    </div>
+  )
+}
+
+function TalkShell({
+  language,
+  onBack,
+}: {
+  language: LanguageKey
+  onBack: () => void
+}) {
+  const copy = content[language].talk
+
+  return (
+    <section className="talk-shell" aria-labelledby="talk-title">
+      <button
+        type="button"
+        className="ghost-action"
+        onClick={onBack}
+        aria-label={copy.back}
+      >
+        <ArrowLeft size={20} aria-hidden="true" />
+      </button>
+      <div className="avatar-stage" data-testid="avatar-stage">
+        <div className="avatar-orbit" aria-hidden="true" />
+        <div className="doctor-avatar" aria-label={copy.avatarStatus}>
+          <div className="avatar-head" />
+          <div className="avatar-body" />
+          <div className="avatar-mouth" />
+        </div>
+      </div>
+      <SelfView language={language} />
+      <div className="conversation-panel" data-testid="control-area">
+        <p className="eyebrow">{copy.eyebrow}</p>
+        <h2 id="talk-title">{copy.title}</h2>
+        <p>{copy.body}</p>
+        <div className="shell-meter" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="shell-status">
+          <strong>{copy.controlTitle}</strong>
+          <span>{copy.controlBody}</span>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 function App() {
   const [language, setLanguage] = useState<LanguageKey>('en')
@@ -55,24 +211,7 @@ function App() {
           </div>
         </section>
       ) : (
-        <section className="talk-placeholder" aria-labelledby="talk-title">
-          <button
-            type="button"
-            className="ghost-action"
-            onClick={() => setMode('entry')}
-            aria-label={copy.talk.back}
-          >
-            <ArrowLeft size={20} aria-hidden="true" />
-          </button>
-          <div className="avatar-standin" aria-hidden="true">
-            <span />
-          </div>
-          <div className="placeholder-copy">
-            <p className="eyebrow">{copy.talk.eyebrow}</p>
-            <h2 id="talk-title">{copy.talk.title}</h2>
-            <p>{copy.talk.body}</p>
-          </div>
-        </section>
+        <TalkShell language={language} onBack={() => setMode('entry')} />
       )}
     </main>
   )

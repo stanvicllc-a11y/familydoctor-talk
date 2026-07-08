@@ -16,6 +16,12 @@ type LanguageContent = {
     title: string
     body: string
     back: string
+    localVideo: string
+    cameraOff: string
+    cameraDenied: string
+    avatarStatus: string
+    controlTitle: string
+    controlBody: string
   }
 }
 
@@ -33,10 +39,16 @@ export const content: Record<LanguageKey, LanguageContent> = {
       privacy: 'Stage build only: no recording, no upload, no backend writes.',
     },
     talk: {
-      eyebrow: 'Placeholder Talk screen',
-      title: 'Conversation shell is ready for Stage 2',
-      body: 'The next stage adds the avatar surface, local self-view camera box, and scripted turn-taking flow.',
+      eyebrow: 'Talk shell',
+      title: 'Dr. Maya is getting ready',
+      body: 'Stage 2 shell placeholder',
       back: 'Back to entry screen',
+      localVideo: 'Your video is local only and is not recorded.',
+      cameraOff: 'Camera preview unavailable',
+      cameraDenied: 'Camera permission denied. You can continue with preview off.',
+      avatarStatus: 'Avatar placeholder',
+      controlTitle: 'Intake shell',
+      controlBody: 'Question flow arrives in Stage 2b.',
     },
   },
   hinglish: {
@@ -52,10 +64,16 @@ export const content: Record<LanguageKey, LanguageContent> = {
       privacy: 'Stage build only: recording nahi, upload nahi, backend write nahi.',
     },
     talk: {
-      eyebrow: 'Placeholder Talk screen',
-      title: 'Conversation shell Stage 2 ke liye ready hai',
-      body: 'Next stage mein avatar surface, local self-view camera box, aur scripted turn-taking flow add hoga.',
+      eyebrow: 'Talk shell',
+      title: 'Dr. Maya ready ho rahi hain',
+      body: 'Stage 2 shell placeholder',
       back: 'Entry screen par wapas',
+      localVideo: 'Aapka video sirf local hai, record nahi hota.',
+      cameraOff: 'Camera preview available nahi hai',
+      cameraDenied: 'Camera permission denied. Preview off ke saath continue kar sakte hain.',
+      avatarStatus: 'Avatar placeholder',
+      controlTitle: 'Intake shell',
+      controlBody: 'Question flow Stage 2b mein aayega.',
     },
   },
 }
