@@ -1,5 +1,5 @@
 .app-shell {
-  min-height: 100svh;
+  height: 100svh;
   background:
     linear-gradient(145deg, rgba(6, 37, 44, 0.94), rgba(18, 29, 37, 0.9)),
     radial-gradient(circle at 15% 12%, rgba(246, 186, 79, 0.28), transparent 30%),
