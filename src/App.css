@@ -304,6 +304,12 @@ h1 {
   line-height: 1.45;
 }
 
+.reflection-note {
+  color: var(--fd-primary-deep);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .shell-meter {
   display: inline-flex;
   justify-content: center;
@@ -338,12 +344,6 @@ h1 {
   font-size: 13px;
 }
 
-.speech-disclosure {
-  color: var(--fd-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
 .answer-capture,
 .confirm-answer,
 .typed-fallback {
@@ -351,17 +351,17 @@ h1 {
   gap: 8px;
 }
 
-.live-transcript,
+.listening-status,
 .captured-answer {
   min-height: 54px;
   display: grid;
-  place-items: center start;
+  place-items: center;
   padding: 10px;
   border-radius: var(--fd-radius-sm);
   background: var(--fd-teal-50);
   color: var(--fd-primary-deep);
   line-height: 1.35;
-  text-align: left;
+  text-align: center;
 }
 
 .answer-actions {
@@ -597,7 +597,7 @@ h1 {
     font-size: 14px;
   }
 
-  .live-transcript,
+  .listening-status,
   .captured-answer {
     min-height: 48px;
     font-size: 14px;

@@ -35,6 +35,36 @@ function playPlaceholderTone() {
   }
 }
 
+const KEYWORD_PATTERNS: Array<{
+  label: Record<LanguageKey, string>
+  terms: string[]
+}> = [
+  { label: { en: 'fever', hinglish: 'fever' }, terms: ['fever', 'temperature', 'bukhar'] },
+  { label: { en: 'cough', hinglish: 'cough' }, terms: ['cough', 'khansi'] },
+  { label: { en: 'pain', hinglish: 'pain' }, terms: ['pain', 'ache', 'dard'] },
+  { label: { en: 'breathing', hinglish: 'breathing' }, terms: ['breath', 'breathing', 'saans'] },
+  { label: { en: 'vomiting', hinglish: 'vomiting' }, terms: ['vomit', 'vomiting', 'ulti'] },
+  { label: { en: 'headache', hinglish: 'headache' }, terms: ['headache', 'sir dard'] },
+  { label: { en: 'allergy', hinglish: 'allergy' }, terms: ['allergy', 'allergic'] },
+  { label: { en: 'medicine', hinglish: 'medicine' }, terms: ['medicine', 'medication', 'tablet', 'dawai'] },
+]
+
+function buildKeywordReflection(answer: string, language: LanguageKey, fallback: string) {
+  const normalizedAnswer = answer.toLowerCase()
+  const keywords = KEYWORD_PATTERNS.filter((item) =>
+    item.terms.some((term) => normalizedAnswer.includes(term)),
+  )
+    .map((item) => item.label[language])
+    .slice(0, 3)
+
+  if (keywords.length === 0) return fallback
+
+  const keywordText = keywords.join(', ')
+  return language === 'en'
+    ? `I am noting the ${keywordText} part and keeping the full picture together.`
+    : `Main ${keywordText} wali baat note kar raha hoon aur full picture saath mein rakh raha hoon.`
+}
+
 function SelfView({ language }: { language: LanguageKey }) {
   const copy = content[language].talk
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -161,6 +191,7 @@ function TalkShell({
   const [useTypedFallback, setUseTypedFallback] = useState(false)
   const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
   const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null)
+  const [reflectionText, setReflectionText] = useState('')
   const speech = useSpeechRecognition({
     language,
     continuous: true,
@@ -173,6 +204,7 @@ function TalkShell({
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
+  const hiddenTranscriptRef = useRef<string[]>([])
 
   useEffect(() => {
     setIntakeData(createEmptyIntake(language))
@@ -180,6 +212,8 @@ function TalkShell({
     setTypedAnswer('')
     setUseTypedFallback(false)
     setReviewingQuestionIndex(null)
+    setReflectionText('')
+    hiddenTranscriptRef.current = []
     setPhase('asking')
     captureTokenRef.current = ''
     speech.reset()
@@ -229,6 +263,11 @@ function TalkShell({
     captureTokenRef.current = captureToken
 
     speech.stop()
+    hiddenTranscriptRef.current = [
+      ...hiddenTranscriptRef.current,
+      `Doctor: ${activeQuestion.text}\nPatient: ${answer}`,
+    ]
+    setReflectionText(buildKeywordReflection(answer, language, copy.reflectionDefault))
     setIntakeData((current) => withIntakeAnswer(current, activeField, answer, source))
     setTypedAnswer('')
     setUseTypedFallback(false)
@@ -259,6 +298,8 @@ function TalkShell({
     setTypedAnswer('')
     setUseTypedFallback(false)
     setReviewingQuestionIndex(null)
+    setReflectionText('')
+    hiddenTranscriptRef.current = []
     captureTokenRef.current = ''
     speech.reset()
     setPhase('asking')
@@ -269,6 +310,7 @@ function TalkShell({
     setQuestionIndex(fieldIndex)
     setTypedAnswer('')
     setUseTypedFallback(false)
+    setReflectionText('')
     captureTokenRef.current = ''
     speech.reset()
     setPhase('asking')
@@ -368,6 +410,7 @@ function TalkShell({
           </span>
         </div>
         <h2 id="talk-title">{activeQuestion.text}</h2>
+        {reflectionText ? <p className="reflection-note">{reflectionText}</p> : null}
         <div className={`shell-meter ${phase === 'listening' ? 'hot' : ''}`} aria-hidden="true">
           <span />
           <span />
@@ -377,8 +420,12 @@ function TalkShell({
           <span style={{ width: `${progress}%` }} />
         </div>
         <div className="answer-capture">
-          <p className="live-transcript" aria-live="polite">
-            {speech.transcript || speech.lastError?.message || copy.noTranscript}
+          <p className="listening-status" aria-live="polite">
+            {useTypedFallback
+              ? speech.lastError?.message || copy.fallbackBody
+              : phase === 'listening'
+                ? copy.listeningStatus
+                : copy.preparingStatus}
           </p>
           {!useTypedFallback ? (
             <button

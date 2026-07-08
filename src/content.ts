@@ -13,15 +13,6 @@ type LanguageContent = {
     cta: string
     privacy: string
   }
-  speech: {
-    disclosure: string
-    harnessTitle: string
-    harnessStart: string
-    harnessStop: string
-    harnessReset: string
-    harnessPlaceholder: string
-    unsupported: string
-  }
   talk: {
     eyebrow: string
     title: string
@@ -34,6 +25,9 @@ type LanguageContent = {
     controlBody: string
     askingLabel: string
     answeringLabel: string
+    preparingStatus: string
+    listeningStatus: string
+    reflectionDefault: string
     tapToAnswer: string
     simulateAnswer: string
     typeInstead: string
@@ -72,17 +66,6 @@ export const content: Record<LanguageKey, LanguageContent> = {
       cta: 'Talk to a doctor',
       privacy: 'Stage build only: no recording, no upload, no backend writes.',
     },
-    speech: {
-      disclosure:
-        'Your voice is turned into text so the doctor can understand you. Your audio is not saved by this app.',
-      harnessTitle: 'Speech test',
-      harnessStart: 'Start mic test',
-      harnessStop: 'Done',
-      harnessReset: 'Reset',
-      harnessPlaceholder: 'Transcript appears here.',
-      unsupported:
-        'Speech recognition is not available in this browser. You can still type answers later in the flow.',
-    },
     talk: {
       eyebrow: 'Talk shell',
       title: 'Dr. Arjun is ready',
@@ -94,7 +77,10 @@ export const content: Record<LanguageKey, LanguageContent> = {
       controlTitle: 'Intake shell',
       controlBody: 'Placeholder turn-taking is active.',
       askingLabel: 'Doctor is asking',
-      answeringLabel: 'Mic placeholder active',
+      answeringLabel: 'Listening',
+      preparingStatus: 'Dr. Arjun is getting the next question ready.',
+      listeningStatus: 'Listening. Speak naturally, then pause when you are finished.',
+      reflectionDefault: 'Thank you. I am keeping that in the picture.',
       tapToAnswer: 'Tap to answer',
       simulateAnswer: 'Simulate answer',
       typeInstead: 'Type instead',
@@ -187,17 +173,6 @@ export const content: Record<LanguageKey, LanguageContent> = {
       cta: 'Doctor se baat karein',
       privacy: 'Stage build only: recording nahi, upload nahi, backend write nahi.',
     },
-    speech: {
-      disclosure:
-        'Aapki awaaz ko text mein badla jaata hai taaki doctor samajh sake. Yeh app aapka audio save nahi karti.',
-      harnessTitle: 'Speech test',
-      harnessStart: 'Mic test start karein',
-      harnessStop: 'Done',
-      harnessReset: 'Reset',
-      harnessPlaceholder: 'Transcript yahan dikhega.',
-      unsupported:
-        'Is browser mein speech recognition available nahi hai. Flow mein baad mein type karke answer de sakte hain.',
-    },
     talk: {
       eyebrow: 'Talk shell',
       title: 'Dr. Arjun ready hain',
@@ -209,7 +184,10 @@ export const content: Record<LanguageKey, LanguageContent> = {
       controlTitle: 'Intake shell',
       controlBody: 'Placeholder turn-taking active hai.',
       askingLabel: 'Doctor pooch rahe hain',
-      answeringLabel: 'Mic placeholder active',
+      answeringLabel: 'Sun rahe hain',
+      preparingStatus: 'Dr. Arjun next question ready kar rahe hain.',
+      listeningStatus: 'Main sun raha hoon. Natural boliye, phir finish hone par thoda pause karein.',
+      reflectionDefault: 'Thank you. Main is baat ko dhyaan mein rakh raha hoon.',
       tapToAnswer: 'Answer dene ke liye tap karein',
       simulateAnswer: 'Answer simulate karein',
       typeInstead: 'Type karein',
