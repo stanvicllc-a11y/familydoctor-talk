@@ -4,6 +4,33 @@ import './App.css'
 import { content, type LanguageKey } from './content'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
+type FlowPhase = 'asking' | 'answering' | 'summary' | 'prescription' | 'download'
+
+function playPlaceholderTone() {
+  const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
+  if (!AudioContextClass) return
+
+  try {
+    const audio = new AudioContextClass()
+    const oscillator = audio.createOscillator()
+    const gain = audio.createGain()
+    oscillator.frequency.value = 620
+    gain.gain.value = 0.035
+    oscillator.connect(gain)
+    gain.connect(audio.destination)
+    oscillator.start()
+    oscillator.stop(audio.currentTime + 0.1)
+    window.setTimeout(() => void audio.close(), 180)
+  } catch {
+    // Some browsers block audio until a user gesture; visual state still advances.
+  }
+}
+
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext
+  }
+}
 
 function SelfView({ language }: { language: LanguageKey }) {
   const copy = content[language].talk
@@ -121,6 +148,115 @@ function TalkShell({
   onBack: () => void
 }) {
   const copy = content[language].talk
+  const [phase, setPhase] = useState<FlowPhase>('asking')
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const activeQuestion = copy.questions[questionIndex]
+  const totalQuestions = copy.questions.length
+  const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
+
+  useEffect(() => {
+    if (phase === 'asking') {
+      playPlaceholderTone()
+    }
+  }, [phase, questionIndex])
+
+  function advanceFromAnswer() {
+    if (questionIndex < totalQuestions - 1) {
+      setQuestionIndex((current) => current + 1)
+      setPhase('asking')
+      return
+    }
+
+    setPhase('summary')
+  }
+
+  function restartScript() {
+    setQuestionIndex(0)
+    setPhase('asking')
+  }
+
+  function renderConversationContent() {
+    if (phase === 'summary') {
+      return (
+        <>
+          <p className="eyebrow">{copy.summaryTitle}</p>
+          <h2 id="talk-title">{copy.summaryTitle}</h2>
+          <p>{copy.summaryBody}</p>
+          <button type="button" className="primary-action compact" onClick={() => setPhase('prescription')}>
+            {copy.nextQuestion}
+          </button>
+        </>
+      )
+    }
+
+    if (phase === 'prescription') {
+      return (
+        <>
+          <p className="eyebrow">{copy.prescriptionTitle}</p>
+          <h2 id="talk-title">{copy.prescriptionTitle}</h2>
+          <p>{copy.prescriptionBody}</p>
+          <button type="button" className="primary-action compact" onClick={() => setPhase('download')}>
+            {copy.nextQuestion}
+          </button>
+        </>
+      )
+    }
+
+    if (phase === 'download') {
+      const fileText = encodeURIComponent(
+        `TheFamilyDoctor.AI Talk placeholder\n\nLanguage: ${language}\nQuestions walked: ${totalQuestions}\n\nNo patient data was recorded or uploaded.`,
+      )
+
+      return (
+        <>
+          <p className="eyebrow">{copy.downloadTitle}</p>
+          <h2 id="talk-title">{copy.downloadTitle}</h2>
+          <p>{copy.downloadBody}</p>
+          <div className="download-actions">
+            <a
+              className="primary-action compact"
+              href={`data:text/plain;charset=utf-8,${fileText}`}
+              download="talk-placeholder.txt"
+            >
+              {copy.downloadCta}
+            </a>
+            <button type="button" className="secondary-action" onClick={restartScript}>
+              {copy.restart}
+            </button>
+          </div>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <div className="flow-topline">
+          <span>{phase === 'asking' ? copy.askingLabel : copy.answeringLabel}</span>
+          <span>
+            {questionIndex + 1}/{totalQuestions}
+          </span>
+        </div>
+        <h2 id="talk-title">{activeQuestion}</h2>
+        <div className={`shell-meter ${phase === 'answering' ? 'hot' : ''}`} aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="progress-track" aria-label={`Question progress ${progress}%`}>
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        {phase === 'asking' ? (
+          <button type="button" className="primary-action compact" onClick={() => setPhase('answering')}>
+            {copy.tapToAnswer}
+          </button>
+        ) : (
+          <button type="button" className="primary-action compact" onClick={advanceFromAnswer}>
+            {copy.simulateAnswer}
+          </button>
+        )}
+      </>
+    )
+  }
 
   return (
     <section className="talk-shell" aria-labelledby="talk-title">
@@ -141,19 +277,8 @@ function TalkShell({
         </div>
       </div>
       <SelfView language={language} />
-      <div className="conversation-panel" data-testid="control-area">
-        <p className="eyebrow">{copy.eyebrow}</p>
-        <h2 id="talk-title">{copy.title}</h2>
-        <p>{copy.body}</p>
-        <div className="shell-meter" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="shell-status">
-          <strong>{copy.controlTitle}</strong>
-          <span>{copy.controlBody}</span>
-        </div>
+      <div className="conversation-panel" data-testid="control-area" data-phase={phase}>
+        {renderConversationContent()}
       </div>
     </section>
   )
