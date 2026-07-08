@@ -1,3 +1,5 @@
+import type { IntakeQuestion } from './intake'
+
 export type LanguageKey = 'en' | 'hinglish'
 
 type LanguageContent = {
@@ -54,7 +56,7 @@ type LanguageContent = {
     downloadBody: string
     downloadCta: string
     restart: string
-    questions: string[]
+    questions: IntakeQuestion[]
   }
 }
 
@@ -121,16 +123,46 @@ export const content: Record<LanguageKey, LanguageContent> = {
       downloadCta: 'Download placeholder',
       restart: 'Restart script',
       questions: [
-        'What brings you in today?',
-        'How long have you had these symptoms?',
-        'Do you have fever, chills, or body aches?',
-        'Are you having chest pain, breathing trouble, or severe weakness?',
-        'Have you taken any medicine for this problem?',
-        'Do you have any allergies to medicines?',
-        'Do you have diabetes, blood pressure, asthma, or any long-term condition?',
-        'Are you pregnant, breastfeeding, or caring for a child patient?',
-        'Have you seen a doctor for this issue before?',
-        'Is there anything else you want the doctor to know?',
+        {
+          field: 'chiefComplaint',
+          text: 'What is the main problem you want help with today?',
+        },
+        {
+          field: 'duration',
+          text: 'When did this start, and has it been getting better or worse?',
+        },
+        {
+          field: 'severity',
+          text: 'How bad is it, and how is it affecting your day?',
+        },
+        {
+          field: 'associatedSymptoms',
+          text: 'What other symptoms have you noticed, like fever, cough, pain, vomiting, or breathing trouble?',
+        },
+        {
+          field: 'triedRemedies',
+          text: 'What medicines or home remedies have you already tried for this?',
+        },
+        {
+          field: 'allergies',
+          text: 'Do you have any allergies to medicines or foods?',
+        },
+        {
+          field: 'currentMedications',
+          text: 'What medicines or supplements do you take regularly?',
+        },
+        {
+          field: 'recentTravel',
+          text: 'Have you travelled recently or eaten anything unusual?',
+        },
+        {
+          field: 'sickContacts',
+          text: 'Has anyone around you been sick with similar symptoms?',
+        },
+        {
+          field: 'pastHistory',
+          text: 'Do you have any long-term conditions or past surgeries the doctor should know about?',
+        },
       ],
     },
   },
@@ -196,16 +228,46 @@ export const content: Record<LanguageKey, LanguageContent> = {
       downloadCta: 'Placeholder download karein',
       restart: 'Script restart karein',
       questions: [
-        'Aaj aapko kya problem ho rahi hai?',
-        'Yeh symptoms kab se hain?',
-        'Aapko fever, chills, ya body pain hai?',
-        'Chest pain, saans lene mein dikkat, ya bahut zyada weakness hai?',
-        'Is problem ke liye koi medicine li hai?',
-        'Kisi medicine se allergy hai?',
-        'Diabetes, blood pressure, asthma, ya koi long-term condition hai?',
-        'Kya aap pregnant hain, breastfeeding kar rahi hain, ya child patient ke liye baat kar rahe hain?',
-        'Is issue ke liye pehle doctor ko dikhaya hai?',
-        'Doctor ko aur kuch important batana chahenge?',
+        {
+          field: 'chiefComplaint',
+          text: 'Aaj sabse main problem kya hai jiske liye help chahiye?',
+        },
+        {
+          field: 'duration',
+          text: 'Yeh kab se start hua, aur better ho raha hai ya worse?',
+        },
+        {
+          field: 'severity',
+          text: 'Kitna severe hai, aur aapke day par kya effect ho raha hai?',
+        },
+        {
+          field: 'associatedSymptoms',
+          text: 'Aur kya symptoms hain, jaise fever, cough, pain, vomiting, ya breathing problem?',
+        },
+        {
+          field: 'triedRemedies',
+          text: 'Iske liye ab tak kaunsi medicine ya home remedy try ki hai?',
+        },
+        {
+          field: 'allergies',
+          text: 'Kisi medicine ya food se allergy hai?',
+        },
+        {
+          field: 'currentMedications',
+          text: 'Aap regular kaunsi medicines ya supplements lete hain?',
+        },
+        {
+          field: 'recentTravel',
+          text: 'Recently travel kiya hai ya kuch unusual khaya hai?',
+        },
+        {
+          field: 'sickContacts',
+          text: 'Aapke aas-paas kisi ko similar symptoms ya sickness hai?',
+        },
+        {
+          field: 'pastHistory',
+          text: 'Koi long-term condition ya past surgery hai jo doctor ko pata honi chahiye?',
+        },
       ],
     },
   },

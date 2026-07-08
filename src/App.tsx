@@ -2,6 +2,8 @@ import { ArrowLeft, Languages, PhoneCall, ShieldCheck } from 'lucide-react'
 import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
+import { createEmptyIntake, withIntakeAnswer } from './intake'
+import type { IntakeAnswerSource, IntakeData } from './intake'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
@@ -211,9 +213,11 @@ function TalkShell({
   const [answerDraft, setAnswerDraft] = useState('')
   const [typedAnswer, setTypedAnswer] = useState('')
   const [useTypedFallback, setUseTypedFallback] = useState(false)
-  const [capturedAnswers, setCapturedAnswers] = useState<string[]>([])
+  const [answerSource, setAnswerSource] = useState<IntakeAnswerSource>('speech')
+  const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
   const speech = useSpeechRecognition({ language })
   const activeQuestion = copy.questions[questionIndex]
+  const activeField = activeQuestion.field
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
 
@@ -224,8 +228,20 @@ function TalkShell({
   }, [phase, questionIndex])
 
   useEffect(() => {
+    setIntakeData(createEmptyIntake(language))
+    setQuestionIndex(0)
+    setAnswerDraft('')
+    setTypedAnswer('')
+    setUseTypedFallback(false)
+    setAnswerSource('speech')
+    setPhase('asking')
+    speech.reset()
+  }, [language])
+
+  useEffect(() => {
     if (phase === 'answering' && speech.status === 'complete' && speech.transcript) {
       setAnswerDraft(speech.transcript)
+      setAnswerSource('speech')
       setUseTypedFallback(false)
       setPhase('confirming')
     }
@@ -254,6 +270,7 @@ function TalkShell({
     if (transcript) {
       speech.stop()
       setAnswerDraft(transcript)
+      setAnswerSource('speech')
       setUseTypedFallback(false)
       setPhase('confirming')
       return
@@ -266,6 +283,7 @@ function TalkShell({
     if (!answer) return
     speech.stop()
     setAnswerDraft(answer)
+    setAnswerSource('typed')
     setUseTypedFallback(true)
     setPhase('confirming')
   }
@@ -285,11 +303,9 @@ function TalkShell({
   function confirmAnswer() {
     const answer = answerDraft.trim()
     if (!answer) return
-    setCapturedAnswers((current) => {
-      const next = [...current]
-      next[questionIndex] = answer
-      return next
-    })
+    setIntakeData((current) =>
+      withIntakeAnswer(current, activeField, answer, answerSource),
+    )
     speech.reset()
     advanceFromAnswer()
   }
@@ -306,10 +322,11 @@ function TalkShell({
 
   function restartScript() {
     setQuestionIndex(0)
-    setCapturedAnswers([])
+    setIntakeData(createEmptyIntake(language))
     setAnswerDraft('')
     setTypedAnswer('')
     setUseTypedFallback(false)
+    setAnswerSource('speech')
     speech.reset()
     setPhase('asking')
   }
@@ -322,7 +339,9 @@ function TalkShell({
           <h2 id="talk-title">{copy.summaryTitle}</h2>
           <p>{copy.summaryBody}</p>
           <p className="answer-count">
-            {capturedAnswers.filter(Boolean).length}/{totalQuestions}
+            {
+              Object.values(intakeData.answers).filter((answer) => answer.value).length
+            }/{totalQuestions}
           </p>
           <button type="button" className="primary-action compact" onClick={() => setPhase('prescription')}>
             {copy.nextQuestion}
@@ -384,7 +403,7 @@ function TalkShell({
             {questionIndex + 1}/{totalQuestions}
           </span>
         </div>
-        <h2 id="talk-title">{activeQuestion}</h2>
+        <h2 id="talk-title">{activeQuestion.text}</h2>
         {phase !== 'confirming' ? (
           <div className={`shell-meter ${phase === 'answering' ? 'hot' : ''}`} aria-hidden="true">
             <span />
