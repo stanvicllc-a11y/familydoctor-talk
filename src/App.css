@@ -462,7 +462,8 @@ h1 {
 .summary-line p {
   color: var(--fd-primary-deep);
   font-size: 17px;
-  line-height: 1.35;
+  line-height: 1.68;
+  padding-bottom: 4px;
   overflow-wrap: anywhere;
   word-break: normal;
 }
@@ -664,7 +665,8 @@ h1 {
 
   .summary-line p {
     font-size: 14px;
-    line-height: 1.34;
+    line-height: 1.72;
+    padding-bottom: 5px;
   }
 
   .talk-shell.summary,
