@@ -14,6 +14,8 @@ import { useSpeechRecognition } from './useSpeechRecognition'
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
 type FlowPhase = 'speaking' | 'listening' | 'summary' | 'prescription' | 'download'
 
+const SILENCE_ADVANCE_MS = 1500
+
 declare global {
   interface Window {
     webkitAudioContext?: typeof AudioContext
@@ -224,7 +226,7 @@ function TalkShell({
     language,
     continuous: true,
     initialSilenceTimeoutMs: 8500,
-    endOfSpeechTimeoutMs: 2100,
+    endOfSpeechTimeoutMs: SILENCE_ADVANCE_MS,
     autoStopOnFinal: false,
   })
   const activeQuestion = copy.questions[questionIndex]
@@ -233,9 +235,22 @@ function TalkShell({
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
   const hiddenTranscriptRef = useRef<string[]>([])
+  const activeTurnRef = useRef({
+    field: activeField,
+    questionIndex,
+    questionText: activeQuestion.text,
+  })
   const summarySpokenRef = useRef(false)
   const summaryEditAttemptRef = useRef(false)
   const summaryEditTokenRef = useRef('')
+
+  useEffect(() => {
+    activeTurnRef.current = {
+      field: activeField,
+      questionIndex,
+      questionText: activeQuestion.text,
+    }
+  }, [activeField, activeQuestion.text, questionIndex])
 
   useEffect(() => {
     setIntakeData(createEmptyIntake(language))
@@ -302,7 +317,7 @@ function TalkShell({
   useEffect(() => {
     if (phase !== 'listening') return
     if (speech.status === 'complete' && speech.transcript.trim()) {
-      captureAnswer(speech.transcript, 'speech')
+      captureAnswer(speech.transcript, 'speech', activeTurnRef.current)
       return
     }
     if (
@@ -353,27 +368,31 @@ function TalkShell({
     }
   }, [phase, summaryEditMessage, speech.status, speech.transcript, speech.lastError])
 
-  function captureAnswer(rawAnswer: string, source: IntakeAnswerSource) {
+  function captureAnswer(
+    rawAnswer: string,
+    source: IntakeAnswerSource,
+    turn = activeTurnRef.current,
+  ) {
     const answer = rawAnswer.trim()
     if (!answer) return
 
-    const captureToken = `${activeField}:${source}:${answer}`
+    const captureToken = `${turn.field}:${source}:${answer}`
     if (captureTokenRef.current === captureToken) return
     captureTokenRef.current = captureToken
 
     speech.stop()
     hiddenTranscriptRef.current = [
       ...hiddenTranscriptRef.current,
-      `Doctor: ${activeQuestion.text}\nPatient: ${answer}`,
+      `Doctor: ${turn.questionText}\nPatient: ${answer}`,
     ]
     setReflectionText(buildKeywordReflection(answer, language, copy.reflectionDefault))
-    setIntakeData((current) => withIntakeAnswer(current, activeField, answer, source))
+    setIntakeData((current) => withIntakeAnswer(current, turn.field, answer, source))
     setTypedAnswer('')
     setUseTypedFallback(false)
     speech.reset()
 
-    if (questionIndex < totalQuestions - 1) {
-      setQuestionIndex((current) => current + 1)
+    if (turn.questionIndex < totalQuestions - 1) {
+      setQuestionIndex(turn.questionIndex + 1)
       setPhase('speaking')
       return
     }
@@ -411,7 +430,7 @@ function TalkShell({
   }
 
   function submitTypedAnswer() {
-    captureAnswer(typedAnswer, 'typed')
+    captureAnswer(typedAnswer, 'typed', activeTurnRef.current)
   }
 
   function restartScript() {

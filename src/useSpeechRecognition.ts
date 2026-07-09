@@ -176,16 +176,19 @@ export function getRecognitionLanguage(language: LanguageKey) {
   return LANGUAGE_BY_KEY[language]
 }
 
+const DEFAULT_END_OF_SPEECH_TIMEOUT_MS = 1500
+
 export function useSpeechRecognition({
   language,
   continuous = false,
   initialSilenceTimeoutMs = 9000,
-  endOfSpeechTimeoutMs = 2200,
+  endOfSpeechTimeoutMs = DEFAULT_END_OF_SPEECH_TIMEOUT_MS,
   autoStopOnFinal = true,
 }: UseSpeechRecognitionOptions) {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const silenceTimerRef = useRef<number | null>(null)
   const finalTranscriptRef = useRef('')
+  const interimTranscriptRef = useRef('')
   const lastErrorRef = useRef<SpeechError | null>(null)
   const requestedStopRef = useRef(false)
   const heardSpeechRef = useRef(false)
@@ -229,6 +232,7 @@ export function useSpeechRecognition({
 
   const reset = useCallback(() => {
     finalTranscriptRef.current = ''
+    interimTranscriptRef.current = ''
     heardSpeechRef.current = false
     setInterimTranscript('')
     setFinalTranscript('')
@@ -258,6 +262,7 @@ export function useSpeechRecognition({
 
       if (resetTranscript) {
         finalTranscriptRef.current = ''
+        interimTranscriptRef.current = ''
         heardSpeechRef.current = false
         setFinalTranscript('')
         setInterimTranscript('')
@@ -305,6 +310,7 @@ export function useSpeechRecognition({
           heardSpeechRef.current = true
         }
 
+        interimTranscriptRef.current = interim.trim()
         setInterimTranscript(interim.trim())
 
         if (autoStopOnFinal && finalTranscriptRef.current.trim()) {
@@ -331,8 +337,12 @@ export function useSpeechRecognition({
       recognition.onend = () => {
         clearSilenceTimer()
         recognitionRef.current = null
-        if (finalTranscriptRef.current.trim()) {
+        const bestTranscript = `${finalTranscriptRef.current} ${interimTranscriptRef.current}`.trim()
+        if (bestTranscript) {
+          finalTranscriptRef.current = bestTranscript
+          setFinalTranscript(bestTranscript)
           setInterimTranscript('')
+          interimTranscriptRef.current = ''
           setStatus('complete')
           return
         }
