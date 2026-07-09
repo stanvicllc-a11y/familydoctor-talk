@@ -56,6 +56,7 @@
 
 .language-toggle button,
 .ghost-action,
+.replay-question,
 .primary-action,
 .secondary-action {
   border: 0;
@@ -362,6 +363,25 @@ h1 {
   color: var(--fd-primary-deep);
   line-height: 1.35;
   text-align: center;
+}
+
+.replay-question {
+  justify-self: center;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-radius: var(--fd-radius-sm);
+  color: var(--fd-primary-deep);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.replay-question svg {
+  color: var(--fd-primary);
 }
 
 .answer-actions {

@@ -28,6 +28,7 @@ type LanguageContent = {
     preparingStatus: string
     listeningStatus: string
     reflectionDefault: string
+    replayQuestion: string
     tapToAnswer: string
     simulateAnswer: string
     typeInstead: string
@@ -88,6 +89,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
       preparingStatus: 'Dr. Arjun is getting the next question ready.',
       listeningStatus: 'Listening. Speak naturally, then pause when you are finished.',
       reflectionDefault: 'Thank you. I am keeping that in the picture.',
+      replayQuestion: 'Replay question',
       tapToAnswer: 'Tap to answer',
       simulateAnswer: 'Simulate answer',
       typeInstead: 'Type instead',
@@ -203,6 +205,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
       preparingStatus: 'Dr. Arjun next question ready kar rahe hain.',
       listeningStatus: 'Main sun raha hoon. Natural boliye, phir finish hone par thoda pause karein.',
       reflectionDefault: 'Thank you. Main is baat ko dhyaan mein rakh raha hoon.',
+      replayQuestion: 'Question dobara sunayein',
       tapToAnswer: 'Answer dene ke liye tap karein',
       simulateAnswer: 'Answer simulate karein',
       typeInstead: 'Type karein',

@@ -1,13 +1,18 @@
-import { ArrowLeft, Languages, PhoneCall, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Languages, PhoneCall, ShieldCheck, Volume2 } from 'lucide-react'
 import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
 import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
 import type { IntakeAnswerSource, IntakeData, IntakeFieldKey } from './intake'
+import {
+  cancelSpeechSynthesis,
+  primeSpeechSynthesis,
+  speakUtterance,
+} from './speechSynthesis'
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
-type FlowPhase = 'asking' | 'listening' | 'summary' | 'prescription' | 'download'
+type FlowPhase = 'speaking' | 'listening' | 'summary' | 'prescription' | 'download'
 
 declare global {
   interface Window {
@@ -63,20 +68,6 @@ function buildKeywordReflection(answer: string, language: LanguageKey, fallback:
   return language === 'en'
     ? `I am noting the ${keywordText} part and keeping the full picture together.`
     : `Main ${keywordText} wali baat note kar raha hoon aur full picture saath mein rakh raha hoon.`
-}
-
-function speakClosing(text: string, language: LanguageKey) {
-  if (!('speechSynthesis' in window)) return
-
-  try {
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = language === 'en' ? 'en-IN' : 'hi-IN'
-    utterance.rate = 0.94
-    window.speechSynthesis.speak(utterance)
-  } catch {
-    // Speech synthesis is a progressive enhancement; the written closing remains visible.
-  }
 }
 
 function inferEditField(editText: string): IntakeFieldKey | null {
@@ -219,7 +210,7 @@ function TalkShell({
   onBack: () => void
 }) {
   const copy = content[language].talk
-  const [phase, setPhase] = useState<FlowPhase>('asking')
+  const [phase, setPhase] = useState<FlowPhase>('speaking')
   const [questionIndex, setQuestionIndex] = useState(0)
   const [typedAnswer, setTypedAnswer] = useState('')
   const [useTypedFallback, setUseTypedFallback] = useState(false)
@@ -260,30 +251,53 @@ function TalkShell({
     summarySpokenRef.current = false
     summaryEditAttemptRef.current = false
     summaryEditTokenRef.current = ''
-    setPhase('asking')
+    setPhase('speaking')
     captureTokenRef.current = ''
     speech.reset()
   }, [language])
 
-  useEffect(() => {
-    if (phase !== 'asking') return
+  function beginListening() {
+    setPhase('listening')
+    const started = speech.start()
+    if (!started) {
+      setUseTypedFallback(true)
+    }
+  }
 
-    playPlaceholderTone()
+  useEffect(() => {
+    if (phase !== 'speaking') return
+
     setTypedAnswer('')
     setUseTypedFallback(false)
     captureTokenRef.current = ''
+    speech.stop()
     speech.reset()
+    playPlaceholderTone()
 
-    const timer = window.setTimeout(() => {
-      setPhase('listening')
-      const started = speech.start()
-      if (!started) {
-        setUseTypedFallback(true)
+    let cancelled = false
+
+    void speakUtterance(activeQuestion.text, {
+      language,
+      onEnd: () => {
+        if (!cancelled) {
+          beginListening()
+        }
+      },
+      onError: () => {
+        if (!cancelled) {
+          beginListening()
+        }
+      },
+    }).then((dispatched) => {
+      if (!dispatched && !cancelled) {
+        beginListening()
       }
-    }, 450)
+    })
 
-    return () => window.clearTimeout(timer)
-  }, [phase, questionIndex])
+    return () => {
+      cancelled = true
+    }
+  }, [phase, questionIndex, activeQuestion.text, language])
 
   useEffect(() => {
     if (phase !== 'listening') return
@@ -305,7 +319,7 @@ function TalkShell({
 
     if (!summarySpokenRef.current) {
       summarySpokenRef.current = true
-      speakClosing(copy.closingSpoken, language)
+      void speakUtterance(copy.closingSpoken, { language })
     }
 
     if (summaryEditAttemptRef.current || summaryEditMessage) return
@@ -360,7 +374,7 @@ function TalkShell({
 
     if (questionIndex < totalQuestions - 1) {
       setQuestionIndex((current) => current + 1)
-      setPhase('asking')
+      setPhase('speaking')
       return
     }
 
@@ -416,7 +430,8 @@ function TalkShell({
     summaryEditTokenRef.current = ''
     captureTokenRef.current = ''
     speech.reset()
-    setPhase('asking')
+    cancelSpeechSynthesis()
+    setPhase('speaking')
   }
 
   function renderConversationContent() {
@@ -553,7 +568,7 @@ function TalkShell({
     return (
       <>
         <div className="flow-topline">
-          <span>{phase === 'asking' ? copy.askingLabel : copy.answeringLabel}</span>
+          <span>{phase === 'speaking' ? copy.askingLabel : copy.answeringLabel}</span>
           <span>
             {questionIndex + 1}/{totalQuestions}
           </span>
@@ -576,6 +591,18 @@ function TalkShell({
                 ? copy.listeningStatus
                 : copy.preparingStatus}
           </p>
+          <button
+            type="button"
+            className="replay-question"
+            onClick={() => {
+              cancelSpeechSynthesis()
+              setPhase('speaking')
+            }}
+            aria-label={copy.replayQuestion}
+          >
+            <Volume2 size={16} aria-hidden="true" />
+            <span>{copy.replayQuestion}</span>
+          </button>
           {!useTypedFallback ? (
             <button
               type="button"
@@ -639,6 +666,11 @@ function App() {
   const [mode, setMode] = useState<'entry' | 'talk'>('entry')
   const copy = content[language]
 
+  function startTalk() {
+    primeSpeechSynthesis(language)
+    setMode('talk')
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar" aria-label="Talk language controls">
@@ -671,7 +703,7 @@ function App() {
           </div>
 
           <div className="entry-actions">
-            <button type="button" className="primary-action" onClick={() => setMode('talk')}>
+            <button type="button" className="primary-action" onClick={startTalk}>
               <PhoneCall size={22} aria-hidden="true" />
               {copy.entry.cta}
             </button>
