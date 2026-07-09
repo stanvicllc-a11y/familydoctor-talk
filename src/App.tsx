@@ -15,6 +15,7 @@ type SelfViewStatus = 'loading' | 'ready' | 'blocked'
 type FlowPhase = 'speaking' | 'listening' | 'summary' | 'prescription' | 'download'
 
 const SILENCE_ADVANCE_MS = 1500
+const TTS_SAFETY_BUFFER_MS = 1800
 
 declare global {
   interface Window {
@@ -121,6 +122,11 @@ function buildSummaryText(
   )
 
   return lines.join('\n')
+}
+
+function estimateSpeechSafetyMs(text: string) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length
+  return Math.max(3500, words * 430 + TTS_SAFETY_BUFFER_MS)
 }
 
 function SelfView({ language }: { language: LanguageKey }) {
@@ -323,27 +329,34 @@ function TalkShell({
     playPlaceholderTone()
 
     let cancelled = false
+    let listeningStarted = false
+    const safetyTimer = window.setTimeout(() => {
+      if (cancelled || listeningStarted) return
+      cancelSpeechSynthesis()
+      listeningStarted = true
+      beginListening()
+    }, estimateSpeechSafetyMs(activeQuestion.text))
+
+    function beginListeningOnce() {
+      if (cancelled || listeningStarted) return
+      window.clearTimeout(safetyTimer)
+      listeningStarted = true
+      beginListening()
+    }
 
     void speakUtterance(activeQuestion.text, {
       language,
-      onEnd: () => {
-        if (!cancelled) {
-          beginListening()
-        }
-      },
-      onError: () => {
-        if (!cancelled) {
-          beginListening()
-        }
-      },
+      onEnd: beginListeningOnce,
+      onError: beginListeningOnce,
     }).then((dispatched) => {
-      if (!dispatched && !cancelled) {
-        beginListening()
+      if (!dispatched) {
+        beginListeningOnce()
       }
     })
 
     return () => {
       cancelled = true
+      window.clearTimeout(safetyTimer)
     }
   }, [phase, questionIndex, activeQuestion.text, language])
 
@@ -364,9 +377,10 @@ function TalkShell({
 
   useEffect(() => {
     if (phase !== 'summary') return
+    let cancelled = false
 
     function beginSummaryEditListening() {
-      if (summaryEditAttemptRef.current || summaryEditMessage) return
+      if (cancelled || summaryEditAttemptRef.current || summaryEditMessage) return
       summaryEditAttemptRef.current = true
       setSummaryEditListening(true)
       setSummaryUseTypedFallback(false)
@@ -380,19 +394,39 @@ function TalkShell({
     if (!summarySpokenRef.current) {
       summarySpokenRef.current = true
       setSummaryEditListening(false)
+      const safetyTimer = window.setTimeout(() => {
+        cancelSpeechSynthesis()
+        beginSummaryEditListening()
+      }, estimateSpeechSafetyMs(copy.closingSpoken))
+
       void speakUtterance(copy.closingSpoken, {
         language,
-        onEnd: beginSummaryEditListening,
-        onError: beginSummaryEditListening,
+        onEnd: () => {
+          window.clearTimeout(safetyTimer)
+          beginSummaryEditListening()
+        },
+        onError: () => {
+          window.clearTimeout(safetyTimer)
+          beginSummaryEditListening()
+        },
       }).then((dispatched) => {
         if (!dispatched) {
+          window.clearTimeout(safetyTimer)
           beginSummaryEditListening()
         }
       })
-      return
+
+      return () => {
+        cancelled = true
+        window.clearTimeout(safetyTimer)
+      }
     }
 
     beginSummaryEditListening()
+
+    return () => {
+      cancelled = true
+    }
   }, [phase, summaryEditMessage, language, copy.closingSpoken])
 
   useEffect(() => {
