@@ -92,6 +92,37 @@ function inferEditField(editText: string): IntakeFieldKey | null {
   return null
 }
 
+function buildSummaryText(
+  intakeData: IntakeData,
+  language: LanguageKey,
+  labels: Record<IntakeFieldKey, string>,
+  missingAnswer: string,
+  openEditLabel: string,
+  openEditNote: string,
+) {
+  const lines = [
+    'TheFamilyDoctor.AI Talk intake summary',
+    `Language: ${language}`,
+    `Generated: ${new Date().toISOString()}`,
+    '',
+    ...INTAKE_FIELD_KEYS.flatMap((field) => [
+      labels[field],
+      intakeData.answers[field].value || missingAnswer,
+      '',
+    ]),
+  ]
+
+  if (openEditNote) {
+    lines.push(openEditLabel, openEditNote, '')
+  }
+
+  lines.push(
+    'Placeholder note: this staging file was generated locally in the browser from in-memory answers. No backend write or prescription generation occurred.',
+  )
+
+  return lines.join('\n')
+}
+
 function SelfView({ language }: { language: LanguageKey }) {
   const copy = content[language].talk
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -222,6 +253,7 @@ function TalkShell({
   const [summaryUseTypedFallback, setSummaryUseTypedFallback] = useState(false)
   const [openEditNote, setOpenEditNote] = useState('')
   const [summaryEditMessage, setSummaryEditMessage] = useState('')
+  const [summaryEditListening, setSummaryEditListening] = useState(false)
   const speech = useSpeechRecognition({
     language,
     continuous: true,
@@ -262,6 +294,7 @@ function TalkShell({
     setSummaryUseTypedFallback(false)
     setOpenEditNote('')
     setSummaryEditMessage('')
+    setSummaryEditListening(false)
     hiddenTranscriptRef.current = []
     summarySpokenRef.current = false
     summaryEditAttemptRef.current = false
@@ -332,25 +365,34 @@ function TalkShell({
   useEffect(() => {
     if (phase !== 'summary') return
 
-    if (!summarySpokenRef.current) {
-      summarySpokenRef.current = true
-      void speakUtterance(copy.closingSpoken, { language })
-    }
-
-    if (summaryEditAttemptRef.current || summaryEditMessage) return
-
-    summaryEditAttemptRef.current = true
-    setSummaryUseTypedFallback(false)
-    speech.reset()
-
-    const timer = window.setTimeout(() => {
+    function beginSummaryEditListening() {
+      if (summaryEditAttemptRef.current || summaryEditMessage) return
+      summaryEditAttemptRef.current = true
+      setSummaryEditListening(true)
+      setSummaryUseTypedFallback(false)
+      speech.reset()
       const started = speech.start()
       if (!started) {
         setSummaryUseTypedFallback(true)
       }
-    }, 900)
+    }
 
-    return () => window.clearTimeout(timer)
+    if (!summarySpokenRef.current) {
+      summarySpokenRef.current = true
+      setSummaryEditListening(false)
+      void speakUtterance(copy.closingSpoken, {
+        language,
+        onEnd: beginSummaryEditListening,
+        onError: beginSummaryEditListening,
+      }).then((dispatched) => {
+        if (!dispatched) {
+          beginSummaryEditListening()
+        }
+      })
+      return
+    }
+
+    beginSummaryEditListening()
   }, [phase, summaryEditMessage, language, copy.closingSpoken])
 
   useEffect(() => {
@@ -426,6 +468,7 @@ function TalkShell({
 
     setSummaryUseTypedFallback(false)
     setSummaryEditDraft('')
+    setSummaryEditListening(false)
     speech.reset()
   }
 
@@ -443,6 +486,7 @@ function TalkShell({
     setSummaryUseTypedFallback(false)
     setOpenEditNote('')
     setSummaryEditMessage('')
+    setSummaryEditListening(false)
     hiddenTranscriptRef.current = []
     summarySpokenRef.current = false
     summaryEditAttemptRef.current = false
@@ -491,7 +535,9 @@ function TalkShell({
                 <p className="listening-status">
                   {summaryUseTypedFallback
                     ? speech.lastError?.message || copy.fallbackBody
-                    : copy.summaryListeningStatus}
+                    : summaryEditListening
+                      ? copy.summaryListeningStatus
+                      : copy.summaryPreparingStatus}
                 </p>
                 {!summaryUseTypedFallback ? (
                   <button
@@ -560,7 +606,14 @@ function TalkShell({
 
     if (phase === 'download') {
       const fileText = encodeURIComponent(
-        `TheFamilyDoctor.AI Talk placeholder\n\nLanguage: ${language}\nQuestions walked: ${totalQuestions}\n\nNo patient data was recorded or uploaded.`,
+        buildSummaryText(
+          intakeData,
+          language,
+          copy.fieldLabels,
+          copy.missingAnswer,
+          copy.openEditLabel,
+          openEditNote,
+        ),
       )
 
       return (
@@ -572,7 +625,7 @@ function TalkShell({
             <a
               className="primary-action compact"
               href={`data:text/plain;charset=utf-8,${fileText}`}
-              download="talk-placeholder.txt"
+              download="talk-summary.txt"
             >
               {copy.downloadCta}
             </a>

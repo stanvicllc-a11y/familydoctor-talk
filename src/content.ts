@@ -42,6 +42,7 @@ type LanguageContent = {
     summaryBody: string
     closingSpoken: string
     summaryInvitation: string
+    summaryPreparingStatus: string
     summaryListeningStatus: string
     summaryTypeInstead: string
     editPlaceholder: string
@@ -106,6 +107,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
       closingSpoken:
         'Thank you. I have a careful summary now. Before we continue, is there anything you want to change or add?',
       summaryInvitation: 'Anything you want to change or add before we continue?',
+      summaryPreparingStatus: 'Dr. Arjun will listen for one change after the summary.',
       summaryListeningStatus: 'Listening for one change or addition.',
       summaryTypeInstead: 'Type a change',
       editPlaceholder: 'Say or type one change or addition',
@@ -116,12 +118,12 @@ export const content: Record<LanguageKey, LanguageContent> = {
       prescriptionTitle: 'Placeholder prescription',
       prescriptionBody:
         'No prescription is generated in this staging shell. This is only the future review surface.',
-      downloadTitle: 'Download placeholder',
+      downloadTitle: 'Download summary',
       downloadBody:
-        'The download button creates a local placeholder text file. No patient data is uploaded.',
-      downloadCta: 'Download placeholder',
+        'The download button creates a local summary text file from this session. No patient data is uploaded.',
+      downloadCta: 'Download summary',
       restart: 'Restart script',
-      missingAnswer: 'No answer captured yet',
+      missingAnswer: '(not provided)',
       fieldLabels: {
         chiefComplaint: 'Main problem',
         duration: 'Duration',
@@ -222,6 +224,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
       closingSpoken:
         'Thank you. Mere paas ab careful summary hai. Continue karne se pehle, kuch change ya add karna hai?',
       summaryInvitation: 'Continue karne se pehle kuch change ya add karna hai?',
+      summaryPreparingStatus: 'Summary ke baad Dr. Arjun ek change ke liye sunenge.',
       summaryListeningStatus: 'Ek change ya addition ke liye sun raha hoon.',
       summaryTypeInstead: 'Change type karein',
       editPlaceholder: 'Ek change ya addition boliye ya type karein',
@@ -232,12 +235,12 @@ export const content: Record<LanguageKey, LanguageContent> = {
       prescriptionTitle: 'Placeholder prescription',
       prescriptionBody:
         'Is staging shell mein prescription generate nahi hota. Yeh sirf future review surface hai.',
-      downloadTitle: 'Download placeholder',
+      downloadTitle: 'Summary download',
       downloadBody:
-        'Download button ek local placeholder text file banata hai. Patient data upload nahi hota.',
-      downloadCta: 'Placeholder download karein',
+        'Download button is session ka local summary text file banata hai. Patient data upload nahi hota.',
+      downloadCta: 'Summary download karein',
       restart: 'Script restart karein',
-      missingAnswer: 'Abhi answer capture nahi hua',
+      missingAnswer: '(not provided)',
       fieldLabels: {
         chiefComplaint: 'Main problem',
         duration: 'Duration',
