@@ -4,13 +4,33 @@ export type IntakeFieldKey =
   | 'chiefComplaint'
   | 'duration'
   | 'severity'
+  | 'betterWorse'
+  | 'showMe'
+  | 'throatCheck'
+  | 'sickContacts'
+  | 'recentTravel'
   | 'associatedSymptoms'
-  | 'triedRemedies'
+  | 'historyIntro'
   | 'allergies'
   | 'currentMedications'
-  | 'recentTravel'
-  | 'sickContacts'
-  | 'pastHistory'
+  | 'conditions'
+  | 'surgeries'
+
+export type AvatarClipId =
+  | 'g1'
+  | 'q_duration'
+  | 'q_severity'
+  | 'q_betterworse'
+  | 'q_showme'
+  | 'q_ahh'
+  | 'q_contacts'
+  | 'q_travel'
+  | 'q_ros'
+  | 'q_hxintro'
+  | 'q_allergies'
+  | 'q_meds'
+  | 'q_conditions'
+  | 'q_surgeries'
 
 export type IntakeAnswerSource = 'speech' | 'typed'
 
@@ -31,19 +51,24 @@ export type IntakeData = {
 export type IntakeQuestion = {
   field: IntakeFieldKey
   text: string
+  clipId?: AvatarClipId
 }
 
 export const INTAKE_FIELD_KEYS: IntakeFieldKey[] = [
   'chiefComplaint',
   'duration',
   'severity',
+  'betterWorse',
+  'showMe',
+  'throatCheck',
+  'sickContacts',
+  'recentTravel',
   'associatedSymptoms',
-  'triedRemedies',
+  'historyIntro',
   'allergies',
   'currentMedications',
-  'recentTravel',
-  'sickContacts',
-  'pastHistory',
+  'conditions',
+  'surgeries',
 ]
 
 export function createEmptyIntake(language: LanguageKey): IntakeData {

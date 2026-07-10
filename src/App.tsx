@@ -3,7 +3,7 @@ import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
 import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
-import type { IntakeAnswerSource, IntakeData, IntakeFieldKey } from './intake'
+import type { AvatarClipId, IntakeAnswerSource, IntakeData, IntakeFieldKey, IntakeQuestion } from './intake'
 import {
   cancelSpeechSynthesis,
   primeSpeechSynthesis,
@@ -16,6 +16,25 @@ type FlowPhase = 'speaking' | 'listening' | 'summary' | 'prescription' | 'downlo
 
 const SILENCE_ADVANCE_MS = 1500
 const TTS_SAFETY_BUFFER_MS = 1800
+const AVATAR_IDLE_SRC = '/talk-avatars/idle_raj_en.mp4'
+const AVATAR_CLIP_SRC: Partial<Record<AvatarClipId, string>> = {
+  g1: '/talk-avatars/raj_g1_en.mp4',
+  q_duration: '/talk-avatars/raj_q_duration_en.mp4',
+  q_severity: '/talk-avatars/raj_q_severity_en.mp4',
+  q_betterworse: '/talk-avatars/raj_q_betterworse_en.mp4',
+  q_showme: '/talk-avatars/raj_q_showme_en.mp4',
+  q_ahh: '/talk-avatars/raj_q_ahh_en.mp4',
+  q_contacts: '/talk-avatars/raj_q_contacts_en.mp4',
+  q_ros: '/talk-avatars/raj_q_ros_en.mp4',
+  q_hxintro: '/talk-avatars/raj_q_hxintro_en.mp4',
+  q_allergies: '/talk-avatars/raj_q_allergies_en.mp4',
+  q_meds: '/talk-avatars/raj_q_meds_en.mp4',
+  q_conditions: '/talk-avatars/raj_q_conditions_en.mp4',
+}
+
+type AvatarAsset =
+  | { kind: 'clip'; clipId: AvatarClipId; src: string }
+  | { kind: 'idle'; src: string; missingClipId?: AvatarClipId }
 
 declare global {
   interface Window {
@@ -79,15 +98,19 @@ function inferEditField(editText: string): IntakeFieldKey | null {
 
   if (matches(['allerg', 'allergy'])) return 'allergies'
   if (matches(['medicine', 'medication', 'tablet', 'dawai', 'supplement'])) return 'currentMedications'
-  if (matches(['started', 'since', 'duration', 'kab se', 'worse', 'better'])) return 'duration'
+  if (matches(['started', 'since', 'duration', 'kab se'])) return 'duration'
+  if (matches(['worse', 'better', 'same'])) return 'betterWorse'
   if (matches(['severe', 'severity', 'bad', 'impact'])) return 'severity'
+  if (matches(['rash', 'swelling', 'visible', 'photo', 'show'])) return 'showMe'
+  if (matches(['throat', 'mouth', 'ahh', 'tonsil'])) return 'throatCheck'
   if (matches(['fever', 'cough', 'pain', 'vomit', 'breath', 'symptom', 'dard'])) {
     return 'associatedSymptoms'
   }
-  if (matches(['tried', 'remedy', 'home', 'took', 'liya'])) return 'triedRemedies'
   if (matches(['travel', 'food', 'khaya'])) return 'recentTravel'
   if (matches(['sick', 'contact', 'around', 'aas-paas'])) return 'sickContacts'
-  if (matches(['history', 'condition', 'surgery'])) return 'pastHistory'
+  if (matches(['history'])) return 'historyIntro'
+  if (matches(['condition', 'diabetes', 'pressure', 'asthma'])) return 'conditions'
+  if (matches(['surgery', 'operation'])) return 'surgeries'
   if (matches(['main', 'problem', 'complaint'])) return 'chiefComplaint'
 
   return null
@@ -127,6 +150,64 @@ function buildSummaryText(
 function estimateSpeechSafetyMs(text: string) {
   const words = text.trim().split(/\s+/).filter(Boolean).length
   return Math.max(3500, words * 430 + TTS_SAFETY_BUFFER_MS)
+}
+
+function resolveAvatarAsset(language: LanguageKey, question?: IntakeQuestion): AvatarAsset {
+  if (language !== 'en' || !question?.clipId) {
+    return { kind: 'idle', src: AVATAR_IDLE_SRC }
+  }
+
+  const clipSrc = AVATAR_CLIP_SRC[question.clipId]
+  if (!clipSrc) {
+    return { kind: 'idle', src: AVATAR_IDLE_SRC, missingClipId: question.clipId }
+  }
+
+  return { kind: 'clip', clipId: question.clipId, src: clipSrc }
+}
+
+function DoctorAvatar({
+  asset,
+  active,
+  onClipEnded,
+}: {
+  asset: AvatarAsset
+  active: boolean
+  onClipEnded: () => void
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    video.load()
+    const play = video.play()
+    if (play && typeof play.catch === 'function') {
+      play.catch(() => {
+        // Browser autoplay policy can still require a tap on some devices.
+      })
+    }
+  }, [asset.src, asset.kind, active])
+
+  return (
+    <video
+      key={`${asset.kind}:${asset.src}:${active ? 'active' : 'idle'}`}
+      ref={videoRef}
+      src={asset.src}
+      className="doctor-avatar-video"
+      autoPlay
+      muted={asset.kind === 'idle' || !active}
+      loop={asset.kind === 'idle' || !active}
+      playsInline
+      preload="auto"
+      aria-label={asset.kind === 'clip' && active ? `Raj filmed clip ${asset.clipId}` : 'Raj idle avatar loop'}
+      data-avatar-mode={asset.kind}
+      data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.missingClipId || 'idle'}
+      onEnded={() => {
+        if (asset.kind === 'clip' && active) onClipEnded()
+      }}
+    />
+  )
 }
 
 function SelfView({ language }: { language: LanguageKey }) {
@@ -269,6 +350,9 @@ function TalkShell({
   })
   const activeQuestion = copy.questions[questionIndex]
   const activeField = activeQuestion.field
+  const activeAvatarAsset = resolveAvatarAsset(language, activeQuestion)
+  const displayedAvatarAsset: AvatarAsset =
+    phase === 'speaking' ? activeAvatarAsset : { kind: 'idle', src: AVATAR_IDLE_SRC }
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
@@ -318,6 +402,12 @@ function TalkShell({
     }
   }
 
+  function handleAvatarClipEnded() {
+    if (phase === 'speaking' && activeAvatarAsset.kind === 'clip') {
+      beginListening()
+    }
+  }
+
   useEffect(() => {
     if (phase !== 'speaking') return
 
@@ -326,7 +416,6 @@ function TalkShell({
     captureTokenRef.current = ''
     speech.stop()
     speech.reset()
-    playPlaceholderTone()
 
     let cancelled = false
     let listeningStarted = false
@@ -335,7 +424,7 @@ function TalkShell({
       cancelSpeechSynthesis()
       listeningStarted = true
       beginListening()
-    }, estimateSpeechSafetyMs(activeQuestion.text))
+    }, activeAvatarAsset.kind === 'clip' ? 60000 : estimateSpeechSafetyMs(activeQuestion.text))
 
     function beginListeningOnce() {
       if (cancelled || listeningStarted) return
@@ -344,6 +433,15 @@ function TalkShell({
       beginListening()
     }
 
+    if (activeAvatarAsset.kind === 'clip') {
+      cancelSpeechSynthesis()
+      return () => {
+        cancelled = true
+        window.clearTimeout(safetyTimer)
+      }
+    }
+
+    playPlaceholderTone()
     void speakUtterance(activeQuestion.text, {
       language,
       onEnd: beginListeningOnce,
@@ -358,7 +456,7 @@ function TalkShell({
       cancelled = true
       window.clearTimeout(safetyTimer)
     }
-  }, [phase, questionIndex, activeQuestion.text, language])
+  }, [phase, questionIndex, activeQuestion.text, language, activeAvatarAsset.kind, activeAvatarAsset.src])
 
   useEffect(() => {
     if (phase !== 'listening') return
@@ -756,7 +854,11 @@ function TalkShell({
       <div className="avatar-stage" data-testid="avatar-stage">
         <div className="avatar-orbit" aria-hidden="true" />
         <div className="doctor-avatar" aria-label={copy.avatarStatus}>
-          <img src="/doctor-avatar.png" alt="" />
+          <DoctorAvatar
+            asset={displayedAvatarAsset}
+            active={phase === 'speaking'}
+            onClipEnded={handleAvatarClipEnded}
+          />
         </div>
       </div>
       <SelfView language={language} />
