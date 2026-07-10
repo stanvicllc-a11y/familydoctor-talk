@@ -1,0 +1,25 @@
+{
+  "idle": {
+    "id": "idle_raj",
+    "src": "/talk-avatars/idle_raj_en.mp4",
+    "source": "https://pub-7a50b28d120045fb8c44115b429c0055.r2.dev/IDLE_RAJ_EN.mp4"
+  },
+  "clips": {
+    "g1": "/talk-avatars/raj_g1_en.mp4",
+    "q_duration": "/talk-avatars/raj_q_duration_en.mp4",
+    "q_severity": "/talk-avatars/raj_q_severity_en.mp4",
+    "q_betterworse": "/talk-avatars/raj_q_betterworse_en.mp4",
+    "q_showme": "/talk-avatars/raj_q_showme_en.mp4",
+    "q_ahh": "/talk-avatars/raj_q_ahh_en.mp4",
+    "q_contacts": "/talk-avatars/raj_q_contacts_en.mp4",
+    "q_ros": "/talk-avatars/raj_q_ros_en.mp4",
+    "q_hxintro": "/talk-avatars/raj_q_hxintro_en.mp4",
+    "q_allergies": "/talk-avatars/raj_q_allergies_en.mp4",
+    "q_meds": "/talk-avatars/raj_q_meds_en.mp4",
+    "q_conditions": "/talk-avatars/raj_q_conditions_en.mp4"
+  },
+  "missing": [
+    "q_travel",
+    "q_surgeries"
+  ]
+}
