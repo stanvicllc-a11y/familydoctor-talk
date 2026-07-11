@@ -61,6 +61,31 @@ type LanguageContent = {
     downloadCta: string
     restart: string
     missingAnswer: string
+    // --- UI strings localized in Stage 2 (used across the Talk flow) ---
+    permEyebrow: string
+    permTitle: string
+    permPreparing: string
+    permAllow: string
+    permReady: string
+    permUnsupported: string
+    permBlocked: string
+    permContinueTyped: string
+    reviewTitle: string
+    answeredFormat: string // tokens: {n} answered, {t} total
+    editAction: string
+    saveAction: string
+    cancelAction: string
+    submitAction: string
+    addPhoto: string
+    photoAttached: string
+    replacePhoto: string
+    removePhoto: string
+    uploadTitle: string
+    addPhotoOrReport: string
+    addAnother: string
+    submittedEyebrow: string
+    submittedTitle: string
+    submittedBody: string
     fieldLabels: Record<IntakeFieldKey, string>
     questions: IntakeQuestion[]
   }
@@ -132,6 +157,30 @@ export const content: Record<LanguageKey, LanguageContent> = {
       downloadCta: 'Download summary',
       restart: 'Restart script',
       missingAnswer: '(not provided)',
+      permEyebrow: 'Talk setup',
+      permTitle: 'Camera and microphone',
+      permPreparing: 'Preparing camera and microphone...',
+      permAllow: 'Allow camera and microphone once to start Talk.',
+      permReady: 'Camera and microphone are ready.',
+      permUnsupported: 'This browser cannot open camera or microphone here. You can continue with typed answers.',
+      permBlocked: 'Camera or microphone was blocked. You can continue with typed answers.',
+      permContinueTyped: 'Continue with typed answers',
+      reviewTitle: 'Review your information',
+      answeredFormat: '{n} of {t} answered',
+      editAction: 'Edit',
+      saveAction: 'Save',
+      cancelAction: 'Cancel',
+      submitAction: 'Submit',
+      addPhoto: 'Add a photo',
+      photoAttached: 'Photo attached',
+      replacePhoto: 'Replace',
+      removePhoto: 'Remove',
+      uploadTitle: 'Add a photo or report (optional)',
+      addPhotoOrReport: 'Add a photo or report',
+      addAnother: 'Add another',
+      submittedEyebrow: 'Submitted',
+      submittedTitle: 'Thank you',
+      submittedBody: 'Submitted — the existing payment/checkout flow continues here in production.',
       fieldLabels: {
         chiefComplaint: 'Main problem',
         duration: 'Duration',
@@ -256,26 +305,26 @@ export const content: Record<LanguageKey, LanguageContent> = {
       listeningStatus: 'Main sun raha hoon. Natural boliye, phir finish hone par thoda pause karein.',
       reflectionDefault: 'Thank you. Main is baat ko dhyaan mein rakh raha hoon.',
       replayQuestion: 'Question dobara sunayein',
-      waitCue: 'Please wait',
+      waitCue: 'Kripya rukein',
       speakNowCue: 'Ab boliye',
-      speakingHint: 'Main bol raha hoon. Please apni baat tab boliye jab aapka turn aaye.',
-      listeningHint: 'Aapka turn. Natural boliye, phir finish hone par thoda pause karein.',
+      speakingHint: 'Main bol raha hoon. Kripya apni baat tab boliye jab aapki baari aaye.',
+      listeningHint: 'Aapki baari. Aaraam se boliye, phir baat poori hone par thoda rukein.',
       tapToAnswer: 'Answer dene ke liye tap karein',
       simulateAnswer: 'Answer simulate karein',
       typeInstead: 'Type karein',
       typedPlaceholder: 'Apna answer yahan type karein',
-      confirmAnswer: 'Continue karein',
-      fallbackTitle: 'Apna answer type karein',
+      confirmAnswer: 'Aage badhein',
+      fallbackTitle: 'Apna jawab type karein',
       fallbackBody:
-        'Yahan speech kaam nahi kar rahi. Aap answer type karke safely continue kar sakte hain.',
+        'Yahan awaaz kaam nahi kar rahi. Aap jawab likhkar aaraam se aage badh sakte hain.',
       noTranscript: 'Mujhe clear nahi mila. Dobara boliye ya type karein.',
       nextQuestion: 'Next question',
       summaryTitle: 'Intake summary',
       summaryBody:
         'Baad mein yahan real intake ka summary dikhega. Abhi yeh scripted questions ke baad handoff prove karta hai.',
       closingSpoken:
-        'Thank you. Mere paas ab careful summary hai. Continue karne se pehle, kuch change ya add karna hai?',
-      summaryInvitation: 'Continue karne se pehle kuch change ya add karna hai?',
+        'Dhanyavaad. Ab mere paas aapki puri jaankari hai. Aage badhne se pehle, kuch badalna ya jodna ho to bataiye.',
+      summaryInvitation: 'Aage badhne se pehle kuch badalna ya jodna hai?',
       summaryPreparingStatus: 'Summary ke baad Dr. Arjun ek change ke liye sunenge.',
       summaryListeningStatus: 'Ek change ya addition ke liye sun raha hoon.',
       summaryTypeInstead: 'Change type karein',
@@ -292,7 +341,31 @@ export const content: Record<LanguageKey, LanguageContent> = {
         'Download button is session ka local summary text file banata hai. Patient data upload nahi hota.',
       downloadCta: 'Summary download karein',
       restart: 'Script restart karein',
-      missingAnswer: '(not provided)',
+      missingAnswer: '(nahi diya gaya)',
+      permEyebrow: 'Talk setup',
+      permTitle: 'Camera aur microphone',
+      permPreparing: 'Camera aur microphone taiyaar ho raha hai...',
+      permAllow: 'Talk shuru karne ke liye ek baar camera aur microphone allow karein.',
+      permReady: 'Camera aur microphone taiyaar hain.',
+      permUnsupported: 'Yeh browser yahan camera ya microphone nahi khol sakta. Aap type karke continue kar sakte hain.',
+      permBlocked: 'Camera ya microphone block ho gaya. Aap type karke continue kar sakte hain.',
+      permContinueTyped: 'Type karke continue karein',
+      reviewTitle: 'Apni jaankari review karein',
+      answeredFormat: '{t} me se {n} bhare',
+      editAction: 'Badlein',
+      saveAction: 'Save karein',
+      cancelAction: 'Cancel karein',
+      submitAction: 'Submit karein',
+      addPhoto: 'Photo add karein',
+      photoAttached: 'Photo lag gaya',
+      replacePhoto: 'Badlein',
+      removePhoto: 'Hatayein',
+      uploadTitle: 'Photo ya report add karein (optional)',
+      addPhotoOrReport: 'Photo ya report add karein',
+      addAnother: 'Aur add karein',
+      submittedEyebrow: 'Ho gaya',
+      submittedTitle: 'Dhanyavaad',
+      submittedBody: 'Submit ho gaya — production mein yahan se payment aur checkout flow aage badhta hai.',
       fieldLabels: {
         chiefComplaint: 'Main problem',
         duration: 'Duration',

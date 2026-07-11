@@ -929,9 +929,9 @@ function TalkShell({
       <div className="clinical-uploader" data-testid="showme-uploader">
         {photo ? (
           <div className="upload-thumb-row">
-            <img className="upload-thumb" src={photo.url} alt="Attached clinical photo" />
+            <img className="upload-thumb" src={photo.url} alt={copy.photoAttached} />
             <div className="upload-thumb-meta">
-              <span className="upload-thumb-name">Photo attached</span>
+              <span className="upload-thumb-name">{copy.photoAttached}</span>
               <div className="upload-thumb-actions">
                 <button
                   type="button"
@@ -939,7 +939,7 @@ function TalkShell({
                   onClick={() => openUploadPicker('showme', 'clinical', 'image/*')}
                 >
                   <Camera size={14} aria-hidden="true" />
-                  <span>Replace</span>
+                  <span>{copy.replacePhoto}</span>
                 </button>
                 <button
                   type="button"
@@ -947,7 +947,7 @@ function TalkShell({
                   onClick={() => removeUpload(photo.id)}
                 >
                   <Trash2 size={14} aria-hidden="true" />
-                  <span>Remove</span>
+                  <span>{copy.removePhoto}</span>
                 </button>
               </div>
             </div>
@@ -960,7 +960,7 @@ function TalkShell({
             data-testid="showme-add-photo"
           >
             <Camera size={20} aria-hidden="true" />
-            <span>Add a photo</span>
+            <span>{copy.addPhoto}</span>
           </button>
         )}
       </div>
@@ -973,8 +973,8 @@ function TalkShell({
   function renderSummaryUploader() {
     const items = uploads.filter((u) => u.source === 'summary')
     return (
-      <section className="summary-upload-card" data-testid="summary-uploader" aria-label="Add a photo or report">
-        <span className="summary-card-label">Add a photo or report (optional)</span>
+      <section className="summary-upload-card" data-testid="summary-uploader" aria-label={copy.addPhotoOrReport}>
+        <span className="summary-card-label">{copy.uploadTitle}</span>
         {items.length ? (
           <div className="summary-upload-items">
             {items.map((item) => (
@@ -991,10 +991,10 @@ function TalkShell({
                   type="button"
                   className="summary-remove-btn"
                   onClick={() => removeUpload(item.id)}
-                  aria-label={`Remove ${item.name}`}
+                  aria-label={`${copy.removePhoto} ${item.name}`}
                 >
                   <Trash2 size={14} aria-hidden="true" />
-                  <span>Remove</span>
+                  <span>{copy.removePhoto}</span>
                 </button>
               </div>
             ))}
@@ -1007,7 +1007,7 @@ function TalkShell({
           data-testid="summary-add-upload"
         >
           <Paperclip size={16} aria-hidden="true" />
-          <span>{items.length ? 'Add another' : 'Add a photo or report'}</span>
+          <span>{items.length ? copy.addAnother : copy.addPhotoOrReport}</span>
         </button>
         {/* TODO(integration): route summary upload via v3.192 image pipeline
             (OCR-vs-multimodal): text-bearing report -> OCR to text; clinical photo
@@ -1022,10 +1022,10 @@ function TalkShell({
       return (
         <div className="summary-view" data-testid="intake-summary">
           <header className="summary-head">
-            <h2 id="talk-title">Review your information</h2>
+            <h2 id="talk-title">{copy.reviewTitle}</h2>
             <p className="summary-sub">{copy.closingSpoken}</p>
             <p className="summary-progress">
-              {answeredCount} of {totalQuestions} answered
+              {copy.answeredFormat.replace('{n}', String(answeredCount)).replace('{t}', String(totalQuestions))}
             </p>
           </header>
 
@@ -1047,10 +1047,10 @@ function TalkShell({
                         type="button"
                         className="summary-edit-btn"
                         onClick={() => startInlineEdit(field)}
-                        aria-label={`Edit ${label}`}
+                        aria-label={`${copy.editAction} ${label}`}
                       >
                         <Pencil size={14} aria-hidden="true" />
-                        <span>Edit</span>
+                        <span>{copy.editAction}</span>
                       </button>
                     ) : null}
                   </div>
@@ -1067,7 +1067,7 @@ function TalkShell({
                         }}
                         rows={3}
                         autoFocus
-                        aria-label={`Edit ${label}`}
+                        aria-label={`${copy.editAction} ${label}`}
                         data-testid={`summary-edit-${field}`}
                       />
                       <div className="summary-edit-actions">
@@ -1081,7 +1081,7 @@ function TalkShell({
                           onClick={saveInlineEdit}
                         >
                           <Check size={15} aria-hidden="true" />
-                          <span>Save</span>
+                          <span>{copy.saveAction}</span>
                         </button>
                         <button
                           type="button"
@@ -1092,7 +1092,7 @@ function TalkShell({
                           }}
                         >
                           <X size={15} aria-hidden="true" />
-                          <span>Cancel</span>
+                          <span>{copy.cancelAction}</span>
                         </button>
                       </div>
                     </div>
@@ -1127,7 +1127,7 @@ function TalkShell({
               onClick={submitSummary}
               data-testid="summary-submit"
             >
-              Submit
+              {copy.submitAction}
             </button>
           </div>
         </div>
@@ -1140,11 +1140,9 @@ function TalkShell({
           <div className="summary-done-badge" aria-hidden="true">
             <Check size={30} />
           </div>
-          <p className="eyebrow">Submitted</p>
-          <h2 id="talk-title">Thank you</h2>
-          <p className="summary-done-copy">
-            Submitted — the existing payment/checkout flow continues here in production.
-          </p>
+          <p className="eyebrow">{copy.submittedEyebrow}</p>
+          <h2 id="talk-title">{copy.submittedTitle}</h2>
+          <p className="summary-done-copy">{copy.submittedBody}</p>
           <button type="button" className="secondary-action" onClick={restartScript}>
             {copy.restart}
           </button>
@@ -1337,9 +1335,10 @@ function App() {
   async function startTalk() {
     // NOTE: avatarEngineRef.current.unlock() is called SYNCHRONOUSLY in the Talk
     // tap handler (below) — it must run inside the user gesture, before any await.
+    const t = content[language].talk
     setMode('permissions')
     setTalkPermissionStatus('requesting')
-    setTalkPermissionMessage('Allow camera and microphone once to start Talk.')
+    setTalkPermissionMessage(t.permAllow)
     await unlockSessionAudio()
     primeSpeechSynthesis(language)
 
@@ -1350,16 +1349,12 @@ function App() {
 
     if (result.status === 'granted') {
       setTalkMediaStream(result.stream)
-      setTalkPermissionMessage('Camera and microphone are ready.')
+      setTalkPermissionMessage(t.permReady)
       setMode('talk')
       return
     }
 
-    setTalkPermissionMessage(
-      result.status === 'unsupported'
-        ? 'This browser cannot open camera or microphone here. You can continue with typed answers.'
-        : 'Camera or microphone was blocked. You can continue with typed answers.',
-    )
+    setTalkPermissionMessage(result.status === 'unsupported' ? t.permUnsupported : t.permBlocked)
   }
 
   function continueWithoutMedia() {
@@ -1374,6 +1369,7 @@ function App() {
   const talkChoiceClass = `choice-option talk ${selectedChoice === 'talk' ? 'selected' : selectedChoice === 'text' ? 'dimmed' : ''}`
   const textChoiceClass = `choice-option text ${selectedChoice === 'text' ? 'selected' : selectedChoice === 'talk' ? 'dimmed' : ''}`
   const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
+  const talkCopy = content[language].talk
 
   return (
     <ProductionChrome
@@ -1492,8 +1488,8 @@ function App() {
         ) : mode === 'permissions' ? (
           <section className="permission-screen" aria-labelledby="permission-title">
             <div className="permission-panel" data-testid="permission-panel" data-permission-status={talkPermissionStatus}>
-              <p className="eyebrow">Talk setup</p>
-              <h1 id="permission-title">Camera and microphone</h1>
+              <p className="eyebrow">{talkCopy.permEyebrow}</p>
+              <h1 id="permission-title">{talkCopy.permTitle}</h1>
               <p className="intro">{talkPermissionMessage}</p>
               {talkPermissionStatus === 'requesting' ? (
                 <div className="permission-meter" aria-hidden="true">
@@ -1505,7 +1501,7 @@ function App() {
               {talkPermissionStatus === 'denied' || talkPermissionStatus === 'unsupported' ? (
                 <button type="button" className="primary-action" onClick={continueWithoutMedia}>
                   <Keyboard size={20} aria-hidden="true" />
-                  Continue with typed answers
+                  {talkCopy.permContinueTyped}
                 </button>
               ) : null}
             </div>
