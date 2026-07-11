@@ -645,6 +645,12 @@ function TalkShell({
                       <textarea
                         value={inlineEditDraft}
                         onChange={(event) => setInlineEditDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                            event.preventDefault()
+                            saveInlineEdit()
+                          }
+                        }}
                         rows={3}
                         aria-label={`Edit ${label}`}
                         data-testid={`summary-edit-${field}`}
