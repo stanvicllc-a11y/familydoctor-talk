@@ -7,6 +7,9 @@ export type ChromePatient = {
   name: string
   code: string
   relationship?: string
+  // From the backend patient profile; used to gate the pregnancy question.
+  gender?: string
+  age?: number
 }
 
 type NavKey = 'home' | 'consult' | 'orders' | 'account'

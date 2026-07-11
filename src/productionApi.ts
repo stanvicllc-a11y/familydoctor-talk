@@ -26,12 +26,18 @@ type FamilyResponse = {
     id?: string
     full_name?: string | null
     code?: string | null
+    gender?: string | null
+    age?: number | null
+    date_of_birth?: string | null
   }
   family_members?: Array<{
     id: string
     full_name: string
     code?: string | null
     relationship_type?: string
+    gender?: string | null
+    age?: number | null
+    date_of_birth?: string | null
   }>
 }
 
@@ -119,11 +125,27 @@ export async function fetchDummyPatients(token: string): Promise<{
     }).catch(() => null),
   ])
 
+  const ageFrom = (age?: number | null, dob?: string | null): number | undefined => {
+    if (typeof age === 'number' && Number.isFinite(age)) return age
+    if (dob) {
+      const born = new Date(dob)
+      if (!Number.isNaN(born.getTime())) {
+        const now = new Date()
+        let years = now.getFullYear() - born.getFullYear()
+        const m = now.getMonth() - born.getMonth()
+        if (m < 0 || (m === 0 && now.getDate() < born.getDate())) years -= 1
+        return years
+      }
+    }
+    return undefined
+  }
   const self: ChromePatient = {
     id: 'self',
     isPrimary: true,
     name: family.self?.full_name?.trim() || 'Test Patient',
     code: family.self?.code || '',
+    gender: family.self?.gender || undefined,
+    age: ageFrom(family.self?.age, family.self?.date_of_birth),
   }
   const familyMembers: ChromePatient[] = (family.family_members || []).map((member) => ({
     id: member.id,
@@ -131,6 +153,8 @@ export async function fetchDummyPatients(token: string): Promise<{
     name: member.full_name,
     code: member.code || '',
     relationship: member.relationship_type,
+    gender: member.gender || undefined,
+    age: ageFrom(member.age, member.date_of_birth),
   }))
   const members = [self, ...familyMembers]
   const activeId =

@@ -260,6 +260,17 @@ function estimateSpeechSafetyMs(text: string) {
   return Math.max(3500, words * 430 + TTS_SAFETY_BUFFER_MS)
 }
 
+// Pregnancy is only clinically relevant for female patients of child-bearing age.
+// Matches the production diagnosis rule (female + ~12-55, inclusive). If sex or age
+// is unknown, DEFAULT TO SKIP (safer than wrongly asking).
+const PREGNANCY_MIN_AGE = 12
+const PREGNANCY_MAX_AGE = 55
+function shouldAskPregnancy(gender?: string, age?: number): boolean {
+  if (!gender || typeof age !== 'number' || !Number.isFinite(age)) return false
+  const isFemale = gender.trim().toLowerCase() === 'female'
+  return isFemale && age >= PREGNANCY_MIN_AGE && age <= PREGNANCY_MAX_AGE
+}
+
 function resolveAvatarAsset(language: LanguageKey, question?: IntakeQuestion): AvatarAsset {
   if (!question?.clipId) {
     return { kind: 'idle', src: AVATAR_IDLE_SRC }
@@ -565,15 +576,20 @@ function TalkShell({
   mediaStream,
   permissionStatus,
   engineRef,
+  patientGender,
+  patientAge,
   onBack,
 }: {
   language: LanguageKey
   mediaStream: MediaStream | null
   permissionStatus: TalkPermissionStatus
   engineRef: RefObject<AvatarEngineHandle | null>
+  patientGender?: string
+  patientAge?: number
   onBack: () => void
 }) {
   const copy = content[language].talk
+  const askPregnancy = shouldAskPregnancy(patientGender, patientAge)
   const [phase, setPhase] = useState<FlowPhase>('speaking')
   const [questionIndex, setQuestionIndex] = useState(0)
   const [typedAnswer, setTypedAnswer] = useState('')
@@ -597,26 +613,35 @@ function TalkShell({
     endOfSpeechTimeoutMs: SILENCE_ADVANCE_MS,
     autoStopOnFinal: false,
   })
-  const activeQuestion = copy.questions[questionIndex]
+  // The pregnancy step is dropped entirely (not shown, spoken, or in the summary)
+  // for patients where it is not clinically relevant.
+  const visibleQuestions = copy.questions.filter(
+    (question) => question.field !== 'pregnancy' || askPregnancy,
+  )
+  const visibleFieldKeys = INTAKE_FIELD_KEYS.filter(
+    (field) => field !== 'pregnancy' || askPregnancy,
+  )
+  const clampedIndex = Math.min(questionIndex, visibleQuestions.length - 1)
+  const activeQuestion = visibleQuestions[clampedIndex]
   const activeField = activeQuestion.field
   const activeAvatarAsset = resolveAvatarAsset(language, activeQuestion)
-  const totalQuestions = copy.questions.length
-  const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
+  const totalQuestions = visibleQuestions.length
+  const progress = Math.round(((clampedIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
   const hiddenTranscriptRef = useRef<string[]>([])
   const activeTurnRef = useRef({
     field: activeField,
-    questionIndex,
+    questionIndex: clampedIndex,
     questionText: activeQuestion.text,
   })
 
   useEffect(() => {
     activeTurnRef.current = {
       field: activeField,
-      questionIndex,
+      questionIndex: clampedIndex,
       questionText: activeQuestion.text,
     }
-  }, [activeField, activeQuestion.text, questionIndex])
+  }, [activeField, activeQuestion.text, clampedIndex])
 
   useEffect(() => {
     uploadsRef.current = uploads
@@ -671,7 +696,7 @@ function TalkShell({
         src: activeAvatarAsset.src,
         muted: false,
         loop: false,
-        token: `clip:${questionIndex}`,
+        token: `clip:${clampedIndex}`,
         onEnded: handleAvatarClipEnded,
       })
     } else {
@@ -993,7 +1018,7 @@ function TalkShell({
 
   function renderConversationContent() {
     if (phase === 'summary') {
-      const answeredCount = Object.values(intakeData.answers).filter((answer) => answer.value).length
+      const answeredCount = visibleFieldKeys.filter((field) => intakeData.answers[field].value).length
       return (
         <div className="summary-view" data-testid="intake-summary">
           <header className="summary-head">
@@ -1005,7 +1030,7 @@ function TalkShell({
           </header>
 
           <div className="summary-list">
-            {INTAKE_FIELD_KEYS.map((field) => {
+            {visibleFieldKeys.map((field) => {
               const answer = intakeData.answers[field]
               const editing = editingSummaryField === field
               const label = copy.fieldLabels[field]
@@ -1129,10 +1154,10 @@ function TalkShell({
 
     return (
       <div className="turn-ui" data-turn-state={phase}>
-        <div className="flow-topline" aria-label={`Question ${questionIndex + 1} of ${totalQuestions}`}>
+        <div className="flow-topline" aria-label={`Question ${clampedIndex + 1} of ${totalQuestions}`}>
           <span>{phase === 'speaking' ? copy.askingLabel : copy.answeringLabel}</span>
           <span>
-            {questionIndex + 1}/{totalQuestions}
+            {clampedIndex + 1}/{totalQuestions}
           </span>
         </div>
         <div className="turn-cue" aria-live="polite">
@@ -1348,6 +1373,7 @@ function App() {
 
   const talkChoiceClass = `choice-option talk ${selectedChoice === 'talk' ? 'selected' : selectedChoice === 'text' ? 'dimmed' : ''}`
   const textChoiceClass = `choice-option text ${selectedChoice === 'text' ? 'selected' : selectedChoice === 'talk' ? 'dimmed' : ''}`
+  const selectedPatient = patients.find((patient) => patient.id === selectedPatientId) ?? patients[0]
 
   return (
     <ProductionChrome
@@ -1490,6 +1516,8 @@ function App() {
             mediaStream={talkMediaStream}
             permissionStatus={talkPermissionStatus}
             engineRef={avatarEngineRef}
+            patientGender={selectedPatient?.gender}
+            patientAge={selectedPatient?.age}
             onBack={() => {
               avatarEngineRef.current?.hide()
               setMode('entry')
