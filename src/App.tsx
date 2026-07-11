@@ -9,7 +9,16 @@ import {
   Volume2,
   X,
 } from 'lucide-react'
-import { type PointerEvent, useEffect, useRef, useState } from 'react'
+import {
+  type PointerEvent,
+  type RefObject,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
 import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
@@ -129,45 +138,19 @@ async function requestTalkMediaStream(existingStream: MediaStream | null) {
   }
 }
 
-async function unlockSessionMediaPlayback() {
-  const attempts: Array<Promise<unknown>> = []
-
+async function unlockSessionAudio() {
+  // Video autoplay is unlocked separately by AvatarEngine.unlock(), which must
+  // run on the SAME persistent <video> elements that later play the clips.
+  // Here we only resume the AudioContext so the TTS fallback (Hinglish path)
+  // can speak without a second gesture.
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
-  if (AudioContextClass) {
-    try {
-      const audio = new AudioContextClass()
-      attempts.push(audio.resume().finally(() => audio.close()))
-    } catch {
-      // Browser support varies; the video unlock below is the main path.
-    }
-  }
-
+  if (!AudioContextClass) return
   try {
-    const video = document.createElement('video')
-    video.src = AVATAR_LISTENING_SRC
-    video.muted = true
-    video.playsInline = true
-    video.preload = 'auto'
-    video.style.position = 'fixed'
-    video.style.width = '1px'
-    video.style.height = '1px'
-    video.style.opacity = '0'
-    video.style.pointerEvents = 'none'
-    document.body.appendChild(video)
-    attempts.push(
-      video.play().then(() => {
-        video.pause()
-        video.currentTime = 0
-      }).finally(() => {
-        video.remove()
-      }),
-    )
+    const audio = new AudioContextClass()
+    await audio.resume().finally(() => audio.close())
   } catch {
-    // The avatar layer has its own per-video fallback if this cannot run.
+    // Browser support varies; not fatal to the avatar flow.
   }
-
-  const results = await Promise.allSettled(attempts)
-  return results.some((result) => result.status === 'fulfilled')
 }
 
 function playPlaceholderTone() {
@@ -238,212 +221,209 @@ function resolveAvatarAsset(language: LanguageKey, question?: IntakeQuestion): A
   return { kind: 'clip', clipId: question.clipId, src: clipSrc }
 }
 
-function avatarAssetKey(asset: AvatarAsset) {
-  return `${asset.kind}:${asset.src}:${asset.kind === 'clip' ? asset.clipId : asset.missingClipId || asset.kind}`
+// --- iOS-safe avatar engine ---------------------------------------------------
+// The core fix. iOS Safari grants programmatic autoplay to a <video> element
+// ONLY if that same element called .play() during a real user gesture. So we
+// keep TWO persistent elements that are (a) mounted before the Talk tap, (b)
+// unlocked inside that tap, and (c) never remounted. Clips are shown by swapping
+// .src on the hidden buffer element and crossfading opacity between the pair —
+// no element is ever created after the gesture, which kills BOTH the play button
+// and the per-clip remount flash.
+
+type AvatarCommand = {
+  src: string
+  muted: boolean
+  loop: boolean
+  token: string
+  onEnded?: () => void
 }
 
-function avatarLabel(asset: AvatarAsset, active: boolean) {
-  if (asset.kind === 'clip' && active) return `Raj filmed clip ${asset.clipId}`
-  if (asset.kind === 'listening') return asset.missingClipId ? `Raj listening avatar loop for ${asset.missingClipId}` : 'Raj listening avatar loop'
-  return 'Raj idle avatar loop'
+export type AvatarEngineHandle = {
+  unlock: () => void
+  play: (command: AvatarCommand) => void
+  hide: () => void
 }
 
-function AvatarVideoLayer({
-  asset,
-  active,
-  mediaUnlocked,
-  onReady,
-  onClipEnded,
-  layer,
-}: {
-  asset: AvatarAsset
-  active: boolean
-  mediaUnlocked: boolean
-  onReady?: () => void
-  onClipEnded: () => void
-  layer: string
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const onClipEndedRef = useRef(onClipEnded)
-  const onReadyRef = useRef(onReady)
+function describeError(error: unknown) {
+  if (error && typeof error === 'object' && 'name' in error) {
+    return String((error as { name?: unknown }).name ?? error)
+  }
+  return String(error)
+}
 
-  useEffect(() => {
-    onClipEndedRef.current = onClipEnded
-  }, [onClipEnded])
+const AvatarEngine = forwardRef<AvatarEngineHandle, { onDebug?: (message: string) => void }>(
+  function AvatarEngine({ onDebug }, ref) {
+    const containerRef = useRef<HTMLDivElement | null>(null)
+    const videoARef = useRef<HTMLVideoElement | null>(null)
+    const videoBRef = useRef<HTMLVideoElement | null>(null)
+    // Which element is currently shown ('a' | 'b'); the other is the buffer.
+    const frontRef = useRef<'a' | 'b'>('a')
+    const currentTokenRef = useRef('')
 
-  useEffect(() => {
-    onReadyRef.current = onReady
-  }, [onReady])
-
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-    const layerVideo = video
-
-    let cancelled = false
-    let hasFrame = layerVideo.readyState >= 2
-    let playbackStarted = false
-
-    function notifyReady() {
-      if (cancelled || !hasFrame || !playbackStarted) return
-      layerVideo.dataset.painted = 'true'
-      window.requestAnimationFrame(() => {
-        if (!cancelled) onReadyRef.current?.()
-      })
-    }
-
-    function markFrameReady() {
-      hasFrame = true
-      notifyReady()
-    }
-
-    layerVideo.load()
-    if (hasFrame) notifyReady()
-    layerVideo.addEventListener('loadeddata', markFrameReady, { once: true })
-    layerVideo.addEventListener('canplay', markFrameReady, { once: true })
-
-    const play = layerVideo.play()
-    if (play && typeof play.catch === 'function') {
-      play
-        .then(() => {
-          playbackStarted = true
-          notifyReady()
-        })
-        .catch(() => {
-          if (asset.kind === 'clip' && active) {
-            layerVideo.dataset.autoplayBlocked = 'true'
+    useImperativeHandle(ref, () => ({
+      unlock() {
+        // MUST run synchronously inside the Talk-tap handler. The listening loop
+        // is silent, so we unlock UNMUTED to give iOS the strongest activation
+        // signal (which is what later allows the UNMUTED question clips to play).
+        for (const node of [videoARef.current, videoBRef.current]) {
+          if (!node) continue
+          try {
+            node.muted = false
+            const promise = node.play()
+            if (promise && typeof promise.then === 'function') {
+              promise
+                .then(() => {
+                  node.pause()
+                  node.currentTime = 0
+                  node.muted = true
+                })
+                .catch((error: unknown) => {
+                  onDebug?.(`unlock ${describeError(error)}`)
+                  node.muted = true
+                  const retry = node.play()
+                  if (retry && typeof retry.then === 'function') {
+                    retry
+                      .then(() => {
+                        node.pause()
+                        node.currentTime = 0
+                      })
+                      .catch(() => undefined)
+                  }
+                })
+            }
+          } catch (error) {
+            onDebug?.(`unlock ${describeError(error)}`)
           }
-          layerVideo.muted = true
-          layerVideo
-            .play()
-            .then(() => {
-              playbackStarted = true
-              notifyReady()
-            })
-            .catch(() => {
-              if (asset.kind === 'clip' && active) {
-                window.setTimeout(() => onClipEndedRef.current(), 900)
+        }
+      },
+      play(command: AvatarCommand) {
+        const container = containerRef.current
+        container?.classList.add('is-visible')
+
+        // Already showing this clip (e.g. loop held across speaking->listening).
+        if (command.token === currentTokenRef.current) return
+        currentTokenRef.current = command.token
+
+        const frontKey = frontRef.current
+        const front = frontKey === 'a' ? videoARef.current : videoBRef.current
+        const back = frontKey === 'a' ? videoBRef.current : videoARef.current
+        if (!front || !back) return
+
+        const myToken = command.token
+        back.onended = null
+        back.loop = command.loop
+        back.muted = command.muted
+        // Only reload the file when the buffer isn't already holding it — this
+        // keeps the listening loop warm instead of re-fetching every turn.
+        if (back.dataset.clipSrc !== command.src) {
+          back.dataset.clipSrc = command.src
+          back.src = command.src
+        }
+        if (command.onEnded && !command.loop) {
+          back.onended = () => {
+            if (currentTokenRef.current === myToken) command.onEnded?.()
+          }
+        }
+
+        const reveal = () => {
+          if (currentTokenRef.current !== myToken) return
+          back.classList.add('is-front')
+          front.classList.remove('is-front')
+          frontRef.current = frontKey === 'a' ? 'b' : 'a'
+          // Pause the outgoing element once the opacity crossfade has finished.
+          window.setTimeout(() => {
+            if (frontRef.current !== frontKey) {
+              front.onended = null
+              try {
+                front.pause()
+              } catch {
+                // ignore
+              }
+            }
+          }, 340)
+        }
+
+        const attempt = (mutedFallback: boolean) => {
+          let promise: Promise<void> | undefined
+          try {
+            promise = back.play() as Promise<void> | undefined
+          } catch (error) {
+            onDebug?.(`play ${describeError(error)}`)
+          }
+          if (promise && typeof promise.then === 'function') {
+            promise.then(reveal).catch((error: unknown) => {
+              onDebug?.(`play ${command.token} ${describeError(error)}`)
+              if (!mutedFallback) {
+                // Element wasn't allowed to play with sound — show it muted so
+                // Raj at least moves, and surface the reason via onDebug.
+                back.muted = true
+                attempt(true)
+              } else if (command.onEnded && !command.loop) {
+                // Last resort: never strand the flow if a clip cannot play here.
+                window.setTimeout(() => {
+                  if (currentTokenRef.current === myToken) command.onEnded?.()
+                }, 900)
               }
             })
-        })
-    } else {
-      playbackStarted = true
-      notifyReady()
-    }
+          } else {
+            reveal()
+          }
+        }
 
-    return () => {
-      cancelled = true
-      layerVideo.removeEventListener('loadeddata', markFrameReady)
-      layerVideo.removeEventListener('canplay', markFrameReady)
-    }
-  }, [asset.src, asset.kind, active, mediaUnlocked])
+        // Reveal only once the buffer has a frame, so there is no flash/seam.
+        if (back.readyState >= 2) {
+          attempt(false)
+        } else {
+          const onCanPlay = () => {
+            back.removeEventListener('canplay', onCanPlay)
+            if (currentTokenRef.current === myToken) attempt(false)
+          }
+          back.addEventListener('canplay', onCanPlay)
+        }
+      },
+      hide() {
+        containerRef.current?.classList.remove('is-visible')
+        currentTokenRef.current = ''
+        for (const node of [videoARef.current, videoBRef.current]) {
+          if (!node) continue
+          node.onended = null
+          try {
+            node.pause()
+          } catch {
+            // ignore
+          }
+        }
+      },
+    }))
 
-  return (
-    <video
-      key={`${layer}:${avatarAssetKey(asset)}`}
-      ref={videoRef}
-      src={asset.src}
-      className={`doctor-avatar-video ${layer}`}
-      autoPlay
-      muted={asset.kind !== 'clip' || !active}
-      loop={asset.kind !== 'clip' || !active}
-      playsInline
-      preload="auto"
-      disablePictureInPicture
-      controls={false}
-      aria-label={avatarLabel(asset, active)}
-      data-avatar-mode={asset.kind}
-      data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.missingClipId || asset.kind}
-      data-media-unlocked={mediaUnlocked ? 'true' : 'false'}
-      data-painted="false"
-      onEnded={() => {
-        if (asset.kind === 'clip' && active) onClipEnded()
-      }}
-    />
-  )
-}
-
-function DoctorAvatar({
-  asset,
-  active,
-  mediaUnlocked,
-  preloadSrc,
-  onClipEnded,
-}: {
-  asset: AvatarAsset
-  active: boolean
-  mediaUnlocked: boolean
-  preloadSrc?: string
-  onClipEnded: () => void
-}) {
-  const [currentAsset, setCurrentAsset] = useState(asset)
-  const [previousAsset, setPreviousAsset] = useState<AvatarAsset | null>(null)
-  const [fadeArmed, setFadeArmed] = useState(true)
-  const currentAssetRef = useRef(asset)
-  const transitionTimerRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    const currentKey = avatarAssetKey(currentAssetRef.current)
-    const nextKey = avatarAssetKey(asset)
-    if (currentKey === nextKey) {
-      currentAssetRef.current = asset
-      return
-    }
-
-    if (transitionTimerRef.current !== null) {
-      window.clearTimeout(transitionTimerRef.current)
-      transitionTimerRef.current = null
-    }
-    setPreviousAsset(currentAssetRef.current)
-    currentAssetRef.current = asset
-    setCurrentAsset(asset)
-    setFadeArmed(false)
-
-    return () => {
-      if (transitionTimerRef.current !== null) {
-        window.clearTimeout(transitionTimerRef.current)
-        transitionTimerRef.current = null
-      }
-    }
-  }, [asset])
-
-  function finishIncomingPaint() {
-    if (!previousAsset) return
-    setFadeArmed(true)
-    if (transitionTimerRef.current !== null) {
-      window.clearTimeout(transitionTimerRef.current)
-    }
-    transitionTimerRef.current = window.setTimeout(() => {
-      setPreviousAsset(null)
-      transitionTimerRef.current = null
-    }, 380)
-  }
-
-  return (
-    <>
-      {previousAsset ? (
-        <AvatarVideoLayer
-          asset={previousAsset}
-          active={false}
-          mediaUnlocked={mediaUnlocked}
-          layer={`previous ${fadeArmed ? 'fade-out' : 'hold'}`}
-          onClipEnded={() => undefined}
+    return (
+      <div className="avatar-engine" ref={containerRef} data-testid="avatar-engine" aria-hidden="true">
+        <video
+          ref={videoARef}
+          className="avatar-engine-video"
+          src={AVATAR_LISTENING_SRC}
+          data-clip-src={AVATAR_LISTENING_SRC}
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          controls={false}
         />
-      ) : null}
-      <AvatarVideoLayer
-        asset={currentAsset}
-        active={active}
-        mediaUnlocked={mediaUnlocked}
-        onReady={finishIncomingPaint}
-        layer={previousAsset ? `current ${fadeArmed ? 'fade-in' : 'hold'}` : 'current'}
-        onClipEnded={onClipEnded}
-      />
-      {preloadSrc ? (
-        <video className="avatar-preload" src={preloadSrc} preload="auto" muted playsInline aria-hidden="true" />
-      ) : null}
-    </>
-  )
-}
+        <video
+          ref={videoBRef}
+          className="avatar-engine-video"
+          src={AVATAR_LISTENING_SRC}
+          data-clip-src={AVATAR_LISTENING_SRC}
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          controls={false}
+        />
+      </div>
+    )
+  },
+)
 
 function SelfView({
   language,
@@ -531,13 +511,13 @@ function TalkShell({
   language,
   mediaStream,
   permissionStatus,
-  mediaUnlocked,
+  engineRef,
   onBack,
 }: {
   language: LanguageKey
   mediaStream: MediaStream | null
   permissionStatus: TalkPermissionStatus
-  mediaUnlocked: boolean
+  engineRef: RefObject<AvatarEngineHandle | null>
   onBack: () => void
 }) {
   const copy = content[language].talk
@@ -562,20 +542,6 @@ function TalkShell({
   const activeQuestion = copy.questions[questionIndex]
   const activeField = activeQuestion.field
   const activeAvatarAsset = resolveAvatarAsset(language, activeQuestion)
-  const nextQuestion = copy.questions[questionIndex + 1]
-  const nextQuestionAsset = nextQuestion ? resolveAvatarAsset(language, nextQuestion) : null
-  const displayedAvatarAsset: AvatarAsset =
-    phase === 'speaking'
-      ? activeAvatarAsset
-      : phase === 'listening'
-        ? { kind: 'listening', src: AVATAR_LISTENING_SRC }
-        : { kind: 'idle', src: AVATAR_IDLE_SRC }
-  const preloadAvatarSrc =
-    phase === 'speaking'
-      ? AVATAR_LISTENING_SRC
-      : phase === 'listening'
-        ? nextQuestionAsset?.src || AVATAR_IDLE_SRC
-        : activeAvatarAsset.src
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
@@ -625,6 +591,38 @@ function TalkShell({
       beginListening()
     }
   }
+
+  // Drive the persistent AvatarEngine. useLayoutEffect so the engine is made
+  // visible (and the crossfade begins) before the browser paints the Talk
+  // screen — no light flash, no seam. Both engine elements were already
+  // unlocked in the Talk-tap gesture, so unmuted clips are allowed to play.
+  useLayoutEffect(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    if (phase === 'summary' || phase === 'submitted') {
+      engine.hide()
+      return
+    }
+    if (phase === 'speaking' && activeAvatarAsset.kind === 'clip') {
+      engine.play({
+        src: activeAvatarAsset.src,
+        muted: false,
+        loop: false,
+        token: `clip:${questionIndex}`,
+        onEnded: handleAvatarClipEnded,
+      })
+    } else {
+      // Listening, or a question with no filmed clip (TTS path): Raj nods on the
+      // silent listening loop. It's interruptible — the next `play()` cuts it.
+      engine.play({
+        src: AVATAR_LISTENING_SRC,
+        muted: true,
+        loop: true,
+        token: 'loop',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, questionIndex, activeAvatarAsset.kind, activeAvatarAsset.src])
 
   useEffect(() => {
     if (phase !== 'speaking') return
@@ -1000,17 +998,8 @@ function TalkShell({
       <button type="button" className="ghost-action" onClick={onBack} aria-label={copy.back}>
         <ArrowLeft size={20} aria-hidden="true" />
       </button>
-      <div className="avatar-stage" data-testid="avatar-stage">
-        <div className="doctor-avatar" aria-label={copy.avatarStatus}>
-          <DoctorAvatar
-            asset={displayedAvatarAsset}
-            active={phase === 'speaking'}
-            mediaUnlocked={mediaUnlocked}
-            preloadSrc={preloadAvatarSrc}
-            onClipEnded={handleAvatarClipEnded}
-          />
-        </div>
-      </div>
+      {/* The avatar itself is the persistent AvatarEngine rendered behind the
+          Talk shell (App root). This shell only holds the overlays. */}
       <SelfView language={language} mediaStream={mediaStream} permissionStatus={permissionStatus} />
       <div className="conversation-panel" data-testid="control-area" data-phase={phase}>
         {renderConversationContent()}
@@ -1029,9 +1018,12 @@ function App() {
   const [talkPermissionStatus, setTalkPermissionStatus] = useState<TalkPermissionStatus>('idle')
   const [talkPermissionMessage, setTalkPermissionMessage] = useState('Preparing camera and microphone...')
   const [talkMediaStream, setTalkMediaStream] = useState<MediaStream | null>(null)
-  const [mediaUnlocked, setMediaUnlocked] = useState(false)
   const [selectedChoice, setSelectedChoice] = useState<ChoiceKey | null>(null)
   const [textLanguage, setTextLanguage] = useState(TEXT_LANGUAGES[0])
+  const avatarEngineRef = useRef<AvatarEngineHandle>(null)
+  // TEMPORARY (Stage 1): surfaces .play() rejection names on-screen so autoplay
+  // failures can be read on a real iPhone without a Mac. Removed in Stage 3.
+  const [avatarDebug, setAvatarDebug] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -1077,11 +1069,12 @@ function App() {
   }, [talkMediaStream])
 
   async function startTalk() {
+    // NOTE: avatarEngineRef.current.unlock() is called SYNCHRONOUSLY in the Talk
+    // tap handler (below) — it must run inside the user gesture, before any await.
     setMode('permissions')
     setTalkPermissionStatus('requesting')
     setTalkPermissionMessage('Allow camera and microphone once to start Talk.')
-    const unlocked = await unlockSessionMediaPlayback()
-    setMediaUnlocked(unlocked)
+    await unlockSessionAudio()
     primeSpeechSynthesis(language)
 
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
@@ -1122,6 +1115,14 @@ function App() {
       activeNav="consult"
       onSwitchPatient={setSelectedPatientId}
     >
+      {/* Persistent, always-mounted so its two <video> elements exist BEFORE the
+          Talk tap and can be unlocked inside that gesture. Sits behind the shell. */}
+      <AvatarEngine ref={avatarEngineRef} onDebug={setAvatarDebug} />
+      {avatarDebug ? (
+        <p className="talk-debug-line" data-testid="avatar-debug">
+          avatar: {avatarDebug}
+        </p>
+      ) : null}
       <main className="app-shell">
         {mode === 'entry' ? (
           <section className="choice-screen" aria-labelledby="entry-title">
@@ -1138,6 +1139,9 @@ function App() {
                   className="choice-box talk-box"
                   onClick={() => {
                     setSelectedChoice('talk')
+                    // Unlock the persistent avatar elements INSIDE the gesture —
+                    // this is the whole fix. Must be synchronous, before awaits.
+                    avatarEngineRef.current?.unlock()
                     void startTalk()
                   }}
                   onFocus={() => setSelectedChoice('talk')}
@@ -1242,8 +1246,11 @@ function App() {
             language={language}
             mediaStream={talkMediaStream}
             permissionStatus={talkPermissionStatus}
-            mediaUnlocked={mediaUnlocked}
-            onBack={() => setMode('entry')}
+            engineRef={avatarEngineRef}
+            onBack={() => {
+              avatarEngineRef.current?.hide()
+              setMode('entry')
+            }}
           />
         )}
       </main>

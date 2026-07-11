@@ -148,8 +148,62 @@
 }
 
 .chrome-content {
+  position: relative;
   height: calc(100svh - var(--chrome-header-height) - var(--chrome-footer-height) - env(safe-area-inset-bottom, 0px));
   overflow: hidden;
+}
+
+/* --- iOS-safe avatar engine (two persistent, gesture-unlocked <video>s) ------ */
+.avatar-engine {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #041f1e;
+  opacity: 0;
+  pointer-events: none;
+  /* No transition on appearance: it must be fully opaque on the first painted
+     frame of the Talk screen so no light background flashes through. */
+}
+
+.avatar-engine.is-visible {
+  opacity: 1;
+}
+
+.avatar-engine-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center center;
+  background: #041f1e;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  will-change: opacity;
+}
+
+.avatar-engine-video.is-front {
+  opacity: 1;
+}
+
+/* TEMPORARY (Stage 1) on-screen debug line for .play() rejections. Removed Stage 3. */
+.talk-debug-line {
+  position: fixed;
+  left: 8px;
+  bottom: calc(var(--chrome-footer-height) + 8px);
+  z-index: 70;
+  max-width: calc(100vw - 16px);
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(180, 35, 24, 0.92);
+  color: #fff;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.3;
+  pointer-events: none;
 }
 
 .patient-bottom-nav {
@@ -709,7 +763,10 @@ h1 {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: #041f1e;
+  /* Transparent during speaking/listening so the persistent AvatarEngine
+     (rendered behind this shell) shows through. Summary/submitted paint their
+     own opaque surface below. */
+  background: transparent;
 }
 
 .ghost-action {
