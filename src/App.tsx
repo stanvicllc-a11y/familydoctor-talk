@@ -229,14 +229,14 @@ const KEYWORD_PATTERNS: Array<{
   label: Record<LanguageKey, string>
   terms: string[]
 }> = [
-  { label: { en: 'fever', hinglish: 'fever' }, terms: ['fever', 'temperature', 'bukhar'] },
-  { label: { en: 'cough', hinglish: 'cough' }, terms: ['cough', 'khansi'] },
-  { label: { en: 'pain', hinglish: 'pain' }, terms: ['pain', 'ache', 'dard'] },
-  { label: { en: 'breathing', hinglish: 'breathing' }, terms: ['breath', 'breathing', 'saans'] },
-  { label: { en: 'vomiting', hinglish: 'vomiting' }, terms: ['vomit', 'vomiting', 'ulti'] },
-  { label: { en: 'headache', hinglish: 'headache' }, terms: ['headache', 'sir dard'] },
-  { label: { en: 'allergy', hinglish: 'allergy' }, terms: ['allergy', 'allergic'] },
-  { label: { en: 'medicine', hinglish: 'medicine' }, terms: ['medicine', 'medication', 'tablet', 'dawai'] },
+  { label: { en: 'fever', hinglish: 'बुखार' }, terms: ['fever', 'temperature', 'bukhar'] },
+  { label: { en: 'cough', hinglish: 'खांसी' }, terms: ['cough', 'khansi'] },
+  { label: { en: 'pain', hinglish: 'दर्द' }, terms: ['pain', 'ache', 'dard'] },
+  { label: { en: 'breathing', hinglish: 'साँस' }, terms: ['breath', 'breathing', 'saans'] },
+  { label: { en: 'vomiting', hinglish: 'उल्टी' }, terms: ['vomit', 'vomiting', 'ulti'] },
+  { label: { en: 'headache', hinglish: 'सिरदर्द' }, terms: ['headache', 'sir dard'] },
+  { label: { en: 'allergy', hinglish: 'एलर्जी' }, terms: ['allergy', 'allergic'] },
+  { label: { en: 'medicine', hinglish: 'दवा' }, terms: ['medicine', 'medication', 'tablet', 'dawai'] },
 ]
 
 function buildKeywordReflection(answer: string, language: LanguageKey, fallback: string) {
@@ -252,7 +252,7 @@ function buildKeywordReflection(answer: string, language: LanguageKey, fallback:
   const keywordText = keywords.join(', ')
   return language === 'en'
     ? `I am noting the ${keywordText} part and keeping the full picture together.`
-    : `Main ${keywordText} wali baat note kar raha hoon aur full picture saath mein rakh raha hoon.`
+    : `मैं ${keywordText} वाली बात नोट कर रहा हूँ और पूरी तस्वीर साथ रख रहा हूँ।`
 }
 
 function estimateSpeechSafetyMs(text: string) {
