@@ -14,6 +14,7 @@ import { content, type LanguageKey } from './content'
 import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
 import type { AvatarClipId, IntakeAnswerSource, IntakeData, IntakeFieldKey, IntakeQuestion } from './intake'
 import { ProductionChrome, type ChromePatient } from './ProductionChrome'
+import { DUMMY_PHONE, fetchDummyPatients, loginDummyAccountOnce } from './productionApi'
 import {
   cancelSpeechSynthesis,
   primeSpeechSynthesis,
@@ -41,6 +42,22 @@ const AVATAR_CLIP_SRC: Partial<Record<AvatarClipId, string>> = {
   q_meds: '/talk-avatars/raj_q_meds_en.mp4',
   q_conditions: '/talk-avatars/raj_q_conditions_en.mp4',
 }
+
+const FALLBACK_PATIENTS: ChromePatient[] = [
+  {
+    id: 'self',
+    isPrimary: true,
+    name: 'Test Patient',
+    code: 'MRN-RZP005',
+  },
+  {
+    id: 'family-demo',
+    isPrimary: false,
+    name: 'Family Member',
+    code: 'MRN-FAMILY',
+    relationship: 'child',
+  },
+]
 
 type AvatarAsset =
   | { kind: 'clip'; clipId: AvatarClipId; src: string }
@@ -911,22 +928,47 @@ function App() {
   const [language, setLanguage] = useState<LanguageKey>('en')
   const [mode, setMode] = useState<'entry' | 'talk'>('entry')
   const [selectedPatientId, setSelectedPatientId] = useState('self')
+  const [patients, setPatients] = useState<ChromePatient[]>(FALLBACK_PATIENTS)
+  const [authStatus, setAuthStatus] = useState<'connecting' | 'ready' | 'error'>('connecting')
+  const [authMessage, setAuthMessage] = useState('Connecting dummy patient account...')
   const copy = content[language]
-  const placeholderPatients: ChromePatient[] = [
-    {
-      id: 'self',
-      isPrimary: true,
-      name: 'Test Patient',
-      code: 'MRN-RZP005',
-    },
-    {
-      id: 'family-demo',
-      isPrimary: false,
-      name: 'Family Member',
-      code: 'MRN-FAMILY',
-      relationship: 'child',
-    },
-  ]
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function hydrateDummyAccount() {
+      setAuthStatus('connecting')
+      setAuthMessage('Connecting dummy patient account...')
+
+      try {
+        const verified = await loginDummyAccountOnce()
+        if (cancelled) return
+
+        const token = verified.token
+        if (!token) throw new Error('Dummy OTP verification did not return a token')
+
+        const loaded = await fetchDummyPatients(token)
+        if (cancelled) return
+
+        if (loaded.members.length > 0) {
+          setPatients(loaded.members)
+          setSelectedPatientId(loaded.selectedId)
+        }
+        setAuthStatus('ready')
+        setAuthMessage(`Connected to real backend dummy account ${DUMMY_PHONE}`)
+      } catch (error) {
+        if (cancelled) return
+        setAuthStatus('error')
+        setAuthMessage(error instanceof Error ? error.message : 'Dummy backend connection failed')
+      }
+    }
+
+    void hydrateDummyAccount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function startTalk() {
     primeSpeechSynthesis(language)
@@ -935,7 +977,7 @@ function App() {
 
   return (
     <ProductionChrome
-      members={placeholderPatients}
+      members={patients}
       selectedId={selectedPatientId}
       activeNav="consult"
       onSwitchPatient={setSelectedPatientId}
@@ -947,6 +989,9 @@ function App() {
               <p className="eyebrow">{copy.entry.eyebrow}</p>
               <h1 id="entry-title">{copy.entry.title}</h1>
               <p className="intro">{copy.entry.subtitle}</p>
+              <p className={`backend-status ${authStatus}`} data-testid="backend-status">
+                {authMessage}
+              </p>
             </div>
 
             <div className="entry-actions">

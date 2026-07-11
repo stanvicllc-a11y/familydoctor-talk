@@ -429,6 +429,21 @@ h1 {
   line-height: 1.5;
 }
 
+.backend-status {
+  max-width: 580px;
+  color: var(--fd-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.backend-status.ready {
+  color: var(--fd-primary-deep);
+}
+
+.backend-status.error {
+  color: #b42318;
+}
+
 .entry-actions {
   display: grid;
   gap: 14px;
