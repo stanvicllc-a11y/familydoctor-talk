@@ -600,7 +600,7 @@
 .text-box {
   color: var(--fd-primary-deep);
   background: #ffffff;
-  /* Still fills the top of the box; preview lines + label sit compactly below. */
+  /* Still fills the top of the box; preview lines sit compactly below. */
   justify-content: flex-start;
   gap: clamp(4px, 1vh, 7px);
 }
@@ -616,26 +616,22 @@
   box-shadow: 0 10px 22px rgba(3, 18, 18, 0.12);
 }
 
+/* Label sits BELOW its box (between the box and its language dropdown) — a clean
+   legible caption, not overlaying the visual. */
 .choice-label {
-  align-self: flex-start;
+  align-self: center;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  min-height: 26px;
-  padding: 0 9px;
-  border-radius: var(--fd-radius-sm);
-  background: rgba(255, 255, 255, 0.92);
   color: var(--fd-primary-deep);
-  font-size: clamp(13px, 4vw, 17px);
+  font-size: clamp(15px, 4.6vw, 19px);
   font-weight: 900;
+  line-height: 1.1;
 }
 
 .choice-label svg {
   color: var(--fd-primary);
-}
-
-.talk-box .choice-label {
-  background: rgba(255, 255, 255, 0.9);
 }
 
 .text-preview {

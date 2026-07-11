@@ -1194,11 +1194,11 @@ function App() {
                     preload="auto"
                     aria-hidden="true"
                   />
-                  <span className="choice-label">
-                    Talk
-                    <PhoneCall size={18} aria-hidden="true" />
-                  </span>
                 </button>
+                <span className="choice-label">
+                  <PhoneCall size={17} aria-hidden="true" />
+                  Talk
+                </span>
                 <label className="choice-select-label">
                   <span>Language</span>
                   <select
@@ -1237,11 +1237,11 @@ function App() {
                     <span>How long has it been?</span>
                     <span>Any allergies?</span>
                   </div>
-                  <span className="choice-label">
-                    Text
-                    <Keyboard size={18} aria-hidden="true" />
-                  </span>
                 </button>
+                <span className="choice-label">
+                  <Keyboard size={17} aria-hidden="true" />
+                  Text
+                </span>
                 <label className="choice-select-label">
                   <span>Language</span>
                   <select
