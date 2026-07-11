@@ -29,6 +29,10 @@ type LanguageContent = {
     listeningStatus: string
     reflectionDefault: string
     replayQuestion: string
+    waitCue: string
+    speakNowCue: string
+    speakingHint: string
+    listeningHint: string
     tapToAnswer: string
     simulateAnswer: string
     typeInstead: string
@@ -91,6 +95,10 @@ export const content: Record<LanguageKey, LanguageContent> = {
       listeningStatus: 'Listening. Speak naturally, then pause when you are finished.',
       reflectionDefault: 'Thank you. I am keeping that in the picture.',
       replayQuestion: 'Replay question',
+      waitCue: 'Please wait',
+      speakNowCue: 'Speak now',
+      speakingHint: "I'm talking. Please wait until it is your turn so your answer is not missed.",
+      listeningHint: 'Your turn. Speak naturally, then pause when you are finished.',
       tapToAnswer: 'Tap to answer',
       simulateAnswer: 'Simulate answer',
       typeInstead: 'Type instead',
@@ -242,6 +250,10 @@ export const content: Record<LanguageKey, LanguageContent> = {
       listeningStatus: 'Main sun raha hoon. Natural boliye, phir finish hone par thoda pause karein.',
       reflectionDefault: 'Thank you. Main is baat ko dhyaan mein rakh raha hoon.',
       replayQuestion: 'Question dobara sunayein',
+      waitCue: 'Please wait',
+      speakNowCue: 'Ab boliye',
+      speakingHint: 'Main bol raha hoon. Please apni baat tab boliye jab aapka turn aaye.',
+      listeningHint: 'Aapka turn. Natural boliye, phir finish hone par thoda pause karein.',
       tapToAnswer: 'Answer dene ke liye tap karein',
       simulateAnswer: 'Answer simulate karein',
       typeInstead: 'Type karein',

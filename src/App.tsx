@@ -1,4 +1,14 @@
-import { ArrowLeft, Languages, PhoneCall, ShieldCheck, Volume2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Keyboard,
+  Languages,
+  Mic,
+  PhoneCall,
+  Send,
+  ShieldCheck,
+  Volume2,
+  X,
+} from 'lucide-react'
 import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { content, type LanguageKey } from './content'
@@ -334,6 +344,7 @@ function TalkShell({
   const [questionIndex, setQuestionIndex] = useState(0)
   const [typedAnswer, setTypedAnswer] = useState('')
   const [useTypedFallback, setUseTypedFallback] = useState(false)
+  const [typedPanelOpen, setTypedPanelOpen] = useState(false)
   const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
   const [reflectionText, setReflectionText] = useState('')
   const [summaryEditDraft, setSummaryEditDraft] = useState('')
@@ -379,6 +390,7 @@ function TalkShell({
     setQuestionIndex(0)
     setTypedAnswer('')
     setUseTypedFallback(false)
+    setTypedPanelOpen(false)
     setReflectionText('')
     setSummaryEditDraft('')
     setSummaryUseTypedFallback(false)
@@ -399,6 +411,7 @@ function TalkShell({
     const started = speech.start()
     if (!started) {
       setUseTypedFallback(true)
+      setTypedPanelOpen(true)
     }
   }
 
@@ -470,6 +483,7 @@ function TalkShell({
       speech.status === 'error'
     ) {
       setUseTypedFallback(true)
+      setTypedPanelOpen(true)
     }
   }, [phase, speech.status, speech.transcript, speech.lastError])
 
@@ -563,6 +577,7 @@ function TalkShell({
     setIntakeData((current) => withIntakeAnswer(current, turn.field, answer, source))
     setTypedAnswer('')
     setUseTypedFallback(false)
+    setTypedPanelOpen(false)
     speech.reset()
 
     if (turn.questionIndex < totalQuestions - 1) {
@@ -606,6 +621,7 @@ function TalkShell({
 
   function submitTypedAnswer() {
     captureAnswer(typedAnswer, 'typed', activeTurnRef.current)
+    setTypedPanelOpen(false)
   }
 
   function restartScript() {
@@ -613,6 +629,7 @@ function TalkShell({
     setIntakeData(createEmptyIntake(language))
     setTypedAnswer('')
     setUseTypedFallback(false)
+    setTypedPanelOpen(false)
     setReflectionText('')
     setSummaryEditDraft('')
     setSummaryUseTypedFallback(false)
@@ -770,34 +787,42 @@ function TalkShell({
     }
 
     return (
-      <>
-        <div className="flow-topline">
+      <div className="turn-ui" data-turn-state={phase}>
+        <div className="flow-topline" aria-label={`Question ${questionIndex + 1} of ${totalQuestions}`}>
           <span>{phase === 'speaking' ? copy.askingLabel : copy.answeringLabel}</span>
           <span>
             {questionIndex + 1}/{totalQuestions}
           </span>
         </div>
-        <h2 id="talk-title">{activeQuestion.text}</h2>
-        {reflectionText ? <p className="reflection-note">{reflectionText}</p> : null}
-        <div className={`shell-meter ${phase === 'listening' ? 'hot' : ''}`} aria-hidden="true">
-          <span />
-          <span />
-          <span />
+        <div className="turn-cue" aria-live="polite">
+          <div className={`cue-icon ${phase === 'listening' ? 'listening' : 'speaking'}`} aria-hidden="true">
+            {phase === 'listening' ? <Mic size={26} /> : <Volume2 size={26} />}
+          </div>
+          <div className="cue-copy">
+            <h2 id="talk-title">{phase === 'listening' ? copy.speakNowCue : copy.waitCue}</h2>
+            <p>
+              {useTypedFallback
+                ? speech.lastError?.message || copy.fallbackBody
+                : phase === 'listening'
+                  ? copy.listeningHint
+                  : copy.speakingHint}
+            </p>
+          </div>
+          <div className={`shell-meter ${phase === 'listening' ? 'hot' : ''}`} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
         <div className="progress-track" aria-label={`Question progress ${progress}%`}>
           <span style={{ width: `${progress}%` }} />
         </div>
-        <div className="answer-capture">
-          <p className="listening-status" aria-live="polite">
-            {useTypedFallback
-              ? speech.lastError?.message || copy.fallbackBody
-              : phase === 'listening'
-                ? copy.listeningStatus
-                : copy.preparingStatus}
-          </p>
+        {reflectionText ? <p className="reflection-note">{reflectionText}</p> : null}
+        <div className="turn-actions">
           <button
             type="button"
-            className="replay-question"
+            className="icon-text-action"
             onClick={() => {
               cancelSpeechSynthesis()
               setPhase('speaking')
@@ -807,42 +832,56 @@ function TalkShell({
             <Volume2 size={16} aria-hidden="true" />
             <span>{copy.replayQuestion}</span>
           </button>
-          {!useTypedFallback ? (
-            <button
-              type="button"
-              className="secondary-action"
-              onClick={() => {
-                speech.stop()
-                setUseTypedFallback(true)
-              }}
-            >
-              {copy.typeInstead}
-            </button>
-          ) : null}
-          {(useTypedFallback || speech.lastError?.shouldUseTypedFallback) && (
-            <div className="typed-fallback">
-              <div className="fallback-copy">
-                <strong>{copy.fallbackTitle}</strong>
-                <span>{speech.lastError?.message || copy.fallbackBody}</span>
-              </div>
-              <textarea
-                value={typedAnswer}
-                onChange={(event) => setTypedAnswer(event.target.value)}
-                placeholder={copy.typedPlaceholder}
-                rows={3}
-              />
+          <button
+            type="button"
+            className="icon-text-action"
+            onClick={() => {
+              speech.stop()
+              setUseTypedFallback(true)
+              setTypedPanelOpen(true)
+            }}
+          >
+            <Keyboard size={16} aria-hidden="true" />
+            <span>{copy.typeInstead}</span>
+          </button>
+        </div>
+        {typedPanelOpen ? (
+          <div className="typed-answer-sheet" role="dialog" aria-label={copy.fallbackTitle}>
+            <div className="typed-sheet-header">
+              <strong>{copy.fallbackTitle}</strong>
               <button
                 type="button"
-                className="primary-action compact"
-                onClick={submitTypedAnswer}
-                disabled={!typedAnswer.trim()}
+                className="sheet-close"
+                onClick={() => {
+                  setTypedPanelOpen(false)
+                  if (!speech.lastError?.shouldUseTypedFallback) {
+                    setUseTypedFallback(false)
+                  }
+                }}
+                aria-label="Close typed answer"
               >
-                {copy.confirmAnswer}
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
-          )}
-        </div>
-      </>
+            <textarea
+              value={typedAnswer}
+              onChange={(event) => setTypedAnswer(event.target.value)}
+              placeholder={copy.typedPlaceholder}
+              rows={3}
+              autoFocus
+            />
+            <button
+              type="button"
+              className="primary-action compact"
+              onClick={submitTypedAnswer}
+              disabled={!typedAnswer.trim()}
+            >
+              <Send size={16} aria-hidden="true" />
+              {copy.confirmAnswer}
+            </button>
+          </div>
+        ) : null}
+      </div>
     )
   }
 
@@ -852,7 +891,6 @@ function TalkShell({
         <ArrowLeft size={20} aria-hidden="true" />
       </button>
       <div className="avatar-stage" data-testid="avatar-stage">
-        <div className="avatar-orbit" aria-hidden="true" />
         <div className="doctor-avatar" aria-label={copy.avatarStatus}>
           <DoctorAvatar
             asset={displayedAvatarAsset}
@@ -881,26 +919,28 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar" aria-label="Talk language controls">
-        <div className="brand-mark">
-          <span className="pulse-dot" aria-hidden="true" />
-          <span>TheFamilyDoctor.AI</span>
-        </div>
-        <div className="language-toggle" aria-label={copy.languageLabel}>
-          <Languages size={18} aria-hidden="true" />
-          {Object.values(content).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={item.key === language ? 'active' : ''}
-              aria-pressed={item.key === language}
-              onClick={() => setLanguage(item.key)}
-            >
-              {item.shortLabel}
-            </button>
-          ))}
-        </div>
-      </header>
+      {mode === 'entry' ? (
+        <header className="topbar" aria-label="Talk language controls">
+          <div className="brand-mark">
+            <span className="pulse-dot" aria-hidden="true" />
+            <span>TheFamilyDoctor.AI</span>
+          </div>
+          <div className="language-toggle" aria-label={copy.languageLabel}>
+            <Languages size={18} aria-hidden="true" />
+            {Object.values(content).map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={item.key === language ? 'active' : ''}
+                aria-pressed={item.key === language}
+                onClick={() => setLanguage(item.key)}
+              >
+                {item.shortLabel}
+              </button>
+            ))}
+          </div>
+        </header>
+      ) : null}
 
       {mode === 'entry' ? (
         <section className="entry-screen" aria-labelledby="entry-title">
