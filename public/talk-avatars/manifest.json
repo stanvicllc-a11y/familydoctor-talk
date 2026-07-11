@@ -1,25 +1,50 @@
 {
-  "idle": {
-    "id": "idle_raj",
-    "src": "/talk-avatars/idle_raj_en.mp4",
-    "source": "https://pub-7a50b28d120045fb8c44115b429c0055.r2.dev/IDLE_RAJ_EN.mp4"
+  "note": "Runtime source-of-truth is AVATAR_CLIP_SRC in src/App.tsx. This manifest documents what is present.",
+  "idle": "/talk-avatars/idle_raj_en.mp4",
+  "listeningLoop": "/talk-avatars/raj_listening_loop_en.mp4 (silent; reused for both languages)",
+  "questionClips": {
+    "en": {
+      "g1": "raj_g1_en.mp4",
+      "q_duration": "raj_q_duration_en.mp4",
+      "q_severity": "raj_q_severity_en.mp4",
+      "q_betterworse": "raj_q_betterworse_en.mp4",
+      "q_showme": "raj_q_showme_en.mp4",
+      "q_ahh": "raj_q_ahh_en.mp4",
+      "q_contacts": "raj_q_contacts_en.mp4",
+      "q_travel": "raj_q_travel_en.mp4",
+      "q_ros": "raj_q_ros_en.mp4",
+      "q_hxintro": "raj_q_hxintro_en.mp4",
+      "q_allergies": "raj_q_allergies_en.mp4",
+      "q_meds": "raj_q_meds_en.mp4",
+      "q_conditions": "raj_q_conditions_en.mp4",
+      "q_surgeries": "raj_q_surgeries_en.mp4",
+      "q_pregnancy": "raj_q_pregnancy_en.mp4"
+    },
+    "hi": {
+      "g1": "raj_g1_hi.mp4",
+      "q_duration": "raj_q_duration_hi.mp4",
+      "q_severity": "raj_q_severity_hi.mp4",
+      "q_betterworse": "raj_q_betterworse_hi.mp4",
+      "q_showme": "raj_q_showme_hi.mp4",
+      "q_ahh": "raj_q_ahh_hi.mp4",
+      "q_contacts": "raj_q_contacts_hi.mp4",
+      "q_travel": "raj_q_travel_hi.mp4",
+      "q_ros": "raj_q_ros_hi.mp4",
+      "q_hxintro": "raj_q_hxintro_hi.mp4",
+      "q_allergies": "raj_q_allergies_hi.mp4",
+      "q_meds": "raj_q_conditionsmeds_hi.mp4 (combined medicines+conditions; plays on the meds step)",
+      "q_conditions": "(none — merged into q_meds clip; this step falls back to listening loop + TTS)",
+      "q_surgeries": "raj_q_surgeries_hi.mp4",
+      "q_pregnancy": "raj_q_pregnancy_hi.mp4"
+    }
   },
-  "clips": {
-    "g1": "/talk-avatars/raj_g1_en.mp4",
-    "q_duration": "/talk-avatars/raj_q_duration_en.mp4",
-    "q_severity": "/talk-avatars/raj_q_severity_en.mp4",
-    "q_betterworse": "/talk-avatars/raj_q_betterworse_en.mp4",
-    "q_showme": "/talk-avatars/raj_q_showme_en.mp4",
-    "q_ahh": "/talk-avatars/raj_q_ahh_en.mp4",
-    "q_contacts": "/talk-avatars/raj_q_contacts_en.mp4",
-    "q_ros": "/talk-avatars/raj_q_ros_en.mp4",
-    "q_hxintro": "/talk-avatars/raj_q_hxintro_en.mp4",
-    "q_allergies": "/talk-avatars/raj_q_allergies_en.mp4",
-    "q_meds": "/talk-avatars/raj_q_meds_en.mp4",
-    "q_conditions": "/talk-avatars/raj_q_conditions_en.mp4"
+  "closingAndUtility": {
+    "note": "Present in public and deployed, but not yet placed into the flow (no step slot in the current design). Available for a future closing-avatar beat.",
+    "en": ["raj_c_closing_en.mp4", "raj_c_review_en.mp4", "raj_c_handoff_en.mp4", "raj_u_ack_en.mp4", "raj_u_repeat_en.mp4"],
+    "hi": ["raj_c_closing_hi.mp4", "raj_c_review_hi.mp4", "raj_c_handoff_hi.mp4", "raj_u_ack_hi.mp4", "raj_u_repeat_hi.mp4", "raj_u_wait_hi.mp4"]
   },
-  "missing": [
-    "q_travel",
-    "q_surgeries"
-  ]
+  "missing": {
+    "en": ["raj_u_wait_en.mp4 (not a flow step)"],
+    "hi": ["raj_q_meds_hi.mp4 + raj_q_conditions_hi.mp4 (intentionally merged into raj_q_conditionsmeds_hi.mp4)"]
+  }
 }

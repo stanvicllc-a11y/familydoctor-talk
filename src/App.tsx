@@ -41,19 +41,49 @@ const SILENCE_ADVANCE_MS = 1500
 const TTS_SAFETY_BUFFER_MS = 1800
 const AVATAR_IDLE_SRC = '/talk-avatars/idle_raj_en.mp4'
 const AVATAR_LISTENING_SRC = '/talk-avatars/raj_listening_loop_en.mp4'
-const AVATAR_CLIP_SRC: Partial<Record<AvatarClipId, string>> = {
-  g1: '/talk-avatars/raj_g1_en.mp4',
-  q_duration: '/talk-avatars/raj_q_duration_en.mp4',
-  q_severity: '/talk-avatars/raj_q_severity_en.mp4',
-  q_betterworse: '/talk-avatars/raj_q_betterworse_en.mp4',
-  q_showme: '/talk-avatars/raj_q_showme_en.mp4',
-  q_ahh: '/talk-avatars/raj_q_ahh_en.mp4',
-  q_contacts: '/talk-avatars/raj_q_contacts_en.mp4',
-  q_ros: '/talk-avatars/raj_q_ros_en.mp4',
-  q_hxintro: '/talk-avatars/raj_q_hxintro_en.mp4',
-  q_allergies: '/talk-avatars/raj_q_allergies_en.mp4',
-  q_meds: '/talk-avatars/raj_q_meds_en.mp4',
-  q_conditions: '/talk-avatars/raj_q_conditions_en.mp4',
+type AvatarClipLang = 'en' | 'hi'
+
+// Per-language filmed clip sources. A step with a real clip for the active
+// language plays it (its own audio, TTS suppressed); a step with no clip for
+// that language falls back to the listening loop + TTS (see resolveAvatarAsset),
+// so a partially-filmed language still runs end-to-end.
+const AVATAR_CLIP_SRC: Record<AvatarClipLang, Partial<Record<AvatarClipId, string>>> = {
+  en: {
+    g1: '/talk-avatars/raj_g1_en.mp4',
+    q_duration: '/talk-avatars/raj_q_duration_en.mp4',
+    q_severity: '/talk-avatars/raj_q_severity_en.mp4',
+    q_betterworse: '/talk-avatars/raj_q_betterworse_en.mp4',
+    q_showme: '/talk-avatars/raj_q_showme_en.mp4',
+    q_ahh: '/talk-avatars/raj_q_ahh_en.mp4',
+    q_contacts: '/talk-avatars/raj_q_contacts_en.mp4',
+    q_travel: '/talk-avatars/raj_q_travel_en.mp4',
+    q_ros: '/talk-avatars/raj_q_ros_en.mp4',
+    q_hxintro: '/talk-avatars/raj_q_hxintro_en.mp4',
+    q_allergies: '/talk-avatars/raj_q_allergies_en.mp4',
+    q_meds: '/talk-avatars/raj_q_meds_en.mp4',
+    q_conditions: '/talk-avatars/raj_q_conditions_en.mp4',
+    q_surgeries: '/talk-avatars/raj_q_surgeries_en.mp4',
+    q_pregnancy: '/talk-avatars/raj_q_pregnancy_en.mp4',
+  },
+  hi: {
+    g1: '/talk-avatars/raj_g1_hi.mp4',
+    q_duration: '/talk-avatars/raj_q_duration_hi.mp4',
+    q_severity: '/talk-avatars/raj_q_severity_hi.mp4',
+    q_betterworse: '/talk-avatars/raj_q_betterworse_hi.mp4',
+    q_showme: '/talk-avatars/raj_q_showme_hi.mp4',
+    q_ahh: '/talk-avatars/raj_q_ahh_hi.mp4',
+    q_contacts: '/talk-avatars/raj_q_contacts_hi.mp4',
+    q_travel: '/talk-avatars/raj_q_travel_hi.mp4',
+    q_ros: '/talk-avatars/raj_q_ros_hi.mp4',
+    q_hxintro: '/talk-avatars/raj_q_hxintro_hi.mp4',
+    q_allergies: '/talk-avatars/raj_q_allergies_hi.mp4',
+    // The Hindi script merges medicines + conditions into ONE filmed clip
+    // (raj_q_conditionsmeds_hi). It plays on the medicines step; the conditions
+    // step has no separate Hindi clip and falls back to the listening loop + TTS.
+    q_meds: '/talk-avatars/raj_q_conditionsmeds_hi.mp4',
+    q_surgeries: '/talk-avatars/raj_q_surgeries_hi.mp4',
+    q_pregnancy: '/talk-avatars/raj_q_pregnancy_hi.mp4',
+  },
 }
 
 const FALLBACK_PATIENTS: ChromePatient[] = [
@@ -212,11 +242,12 @@ function estimateSpeechSafetyMs(text: string) {
 }
 
 function resolveAvatarAsset(language: LanguageKey, question?: IntakeQuestion): AvatarAsset {
-  if (language !== 'en' || !question?.clipId) {
+  if (!question?.clipId) {
     return { kind: 'idle', src: AVATAR_IDLE_SRC }
   }
 
-  const clipSrc = AVATAR_CLIP_SRC[question.clipId]
+  const langCode: AvatarClipLang = language === 'en' ? 'en' : 'hi'
+  const clipSrc = AVATAR_CLIP_SRC[langCode][question.clipId]
   if (!clipSrc) {
     return { kind: 'listening', src: AVATAR_LISTENING_SRC, missingClipId: question.clipId }
   }

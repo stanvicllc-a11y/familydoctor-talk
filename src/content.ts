@@ -314,62 +314,81 @@ export const content: Record<LanguageKey, LanguageContent> = {
         {
           field: 'chiefComplaint',
           text: 'Aaj sabse main problem kya hai jiske liye help chahiye?',
+          clipId: 'g1',
         },
         {
           field: 'duration',
           text: 'Yeh kab se start hua?',
+          clipId: 'q_duration',
         },
         {
           field: 'severity',
           text: 'Kitna severe hai, aur aapke day par kya effect ho raha hai?',
+          clipId: 'q_severity',
         },
         {
           field: 'betterWorse',
           text: 'Yeh better ho raha hai, worse ho raha hai, ya lagbhag same hai?',
+          clipId: 'q_betterworse',
         },
         {
           field: 'showMe',
           text: 'Agar kuch visible hai, jaise rash ya swelling, to mujhe dikhaiye ya describe kijiye.',
+          clipId: 'q_showme',
         },
         {
           field: 'throatCheck',
           text: 'Agar mouth ya throat involved hai, please ahh boliye ya jo dikh raha hai describe kijiye.',
+          clipId: 'q_ahh',
         },
         {
           field: 'sickContacts',
           text: 'Aapke aas-paas kisi ko similar symptoms ya sickness hai?',
+          clipId: 'q_contacts',
         },
         {
           field: 'recentTravel',
           text: 'Recently travel kiya hai ya kuch unusual khaya hai?',
+          clipId: 'q_travel',
         },
         {
           field: 'associatedSymptoms',
           text: 'Aur kya symptoms hain, jaise fever, cough, pain, vomiting, ya breathing problem?',
+          clipId: 'q_ros',
         },
         {
           field: 'historyIntro',
           text: 'Ab doctor review se pehle main aapki medical history confirm karna chahta hoon.',
+          clipId: 'q_hxintro',
         },
         {
           field: 'allergies',
           text: 'Kisi medicine ya food se allergy hai?',
+          clipId: 'q_allergies',
         },
         {
           field: 'currentMedications',
+          // Hindi: the filmed clip for this step (raj_q_conditionsmeds_hi) asks
+          // about medicines AND long-term conditions together.
           text: 'Aap regular kaunsi medicines ya supplements lete hain?',
+          clipId: 'q_meds',
         },
         {
           field: 'conditions',
+          // No separate Hindi clip (merged into the medicines clip above) -> this
+          // step falls back to the listening loop + TTS reading this line.
           text: 'Kya aapko koi long-term medical conditions hain?',
+          clipId: 'q_conditions',
         },
         {
           field: 'surgeries',
           text: 'Kya aapki koi past surgeries hui hain jo doctor ko pata honi chahiye?',
+          clipId: 'q_surgeries',
         },
         {
           field: 'pregnancy',
           text: 'Safety ke liye, kya pregnancy ka koi chance hai?',
+          clipId: 'q_pregnancy',
         },
       ],
     },
