@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   Keyboard,
-  Languages,
   Mic,
   PhoneCall,
   Send,
@@ -14,6 +13,7 @@ import './App.css'
 import { content, type LanguageKey } from './content'
 import { createEmptyIntake, INTAKE_FIELD_KEYS, withIntakeAnswer } from './intake'
 import type { AvatarClipId, IntakeAnswerSource, IntakeData, IntakeFieldKey, IntakeQuestion } from './intake'
+import { ProductionChrome, type ChromePatient } from './ProductionChrome'
 import {
   cancelSpeechSynthesis,
   primeSpeechSynthesis,
@@ -910,7 +910,23 @@ function TalkShell({
 function App() {
   const [language, setLanguage] = useState<LanguageKey>('en')
   const [mode, setMode] = useState<'entry' | 'talk'>('entry')
+  const [selectedPatientId, setSelectedPatientId] = useState('self')
   const copy = content[language]
+  const placeholderPatients: ChromePatient[] = [
+    {
+      id: 'self',
+      isPrimary: true,
+      name: 'Test Patient',
+      code: 'MRN-RZP005',
+    },
+    {
+      id: 'family-demo',
+      isPrimary: false,
+      name: 'Family Member',
+      code: 'MRN-FAMILY',
+      relationship: 'child',
+    },
+  ]
 
   function startTalk() {
     primeSpeechSynthesis(language)
@@ -918,53 +934,50 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
-      {mode === 'entry' ? (
-        <header className="topbar" aria-label="Talk language controls">
-          <div className="brand-mark">
-            <span className="pulse-dot" aria-hidden="true" />
-            <span>TheFamilyDoctor.AI</span>
-          </div>
-          <div className="language-toggle" aria-label={copy.languageLabel}>
-            <Languages size={18} aria-hidden="true" />
-            {Object.values(content).map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={item.key === language ? 'active' : ''}
-                aria-pressed={item.key === language}
-                onClick={() => setLanguage(item.key)}
-              >
-                {item.shortLabel}
-              </button>
-            ))}
-          </div>
-        </header>
-      ) : null}
-
-      {mode === 'entry' ? (
-        <section className="entry-screen" aria-labelledby="entry-title">
-          <div className="entry-copy">
-            <p className="eyebrow">{copy.entry.eyebrow}</p>
-            <h1 id="entry-title">{copy.entry.title}</h1>
-            <p className="intro">{copy.entry.subtitle}</p>
-          </div>
-
-          <div className="entry-actions">
-            <button type="button" className="primary-action" onClick={startTalk}>
-              <PhoneCall size={22} aria-hidden="true" />
-              {copy.entry.cta}
-            </button>
-            <div className="privacy-strip">
-              <ShieldCheck size={18} aria-hidden="true" />
-              <span>{copy.entry.privacy}</span>
+    <ProductionChrome
+      members={placeholderPatients}
+      selectedId={selectedPatientId}
+      activeNav="consult"
+      onSwitchPatient={setSelectedPatientId}
+    >
+      <main className="app-shell">
+        {mode === 'entry' ? (
+          <section className="entry-screen" aria-labelledby="entry-title">
+            <div className="entry-copy">
+              <p className="eyebrow">{copy.entry.eyebrow}</p>
+              <h1 id="entry-title">{copy.entry.title}</h1>
+              <p className="intro">{copy.entry.subtitle}</p>
             </div>
-          </div>
-        </section>
-      ) : (
-        <TalkShell language={language} onBack={() => setMode('entry')} />
-      )}
-    </main>
+
+            <div className="entry-actions">
+              <div className="language-toggle" aria-label={copy.languageLabel}>
+                {Object.values(content).map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={item.key === language ? 'active' : ''}
+                    aria-pressed={item.key === language}
+                    onClick={() => setLanguage(item.key)}
+                  >
+                    {item.shortLabel}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="primary-action" onClick={startTalk}>
+                <PhoneCall size={22} aria-hidden="true" />
+                {copy.entry.cta}
+              </button>
+              <div className="privacy-strip">
+                <ShieldCheck size={18} aria-hidden="true" />
+                <span>{copy.entry.privacy}</span>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <TalkShell language={language} onBack={() => setMode('entry')} />
+        )}
+      </main>
+    </ProductionChrome>
   )
 }
 
