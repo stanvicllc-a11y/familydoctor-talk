@@ -72,17 +72,20 @@ const FALLBACK_PATIENTS: ChromePatient[] = [
   },
 ]
 
+// All 12 languages for the (visually complete, not-yet-wired) Text intake.
 const TEXT_LANGUAGES = [
   'English',
   'Hindi',
-  'Tamil',
-  'Telugu',
+  'Bengali',
+  'Gujarati',
   'Kannada',
   'Malayalam',
-  'Bengali',
   'Marathi',
-  'Gujarati',
+  'Odia',
   'Punjabi',
+  'Tamil',
+  'Telugu',
+  'Urdu',
 ]
 
 type ChoiceKey = 'talk' | 'text'
@@ -1156,8 +1159,10 @@ function App() {
                     preload="auto"
                     aria-hidden="true"
                   />
-                  <span className="choice-label">Talk</span>
-                  <PhoneCall size={22} aria-hidden="true" />
+                  <span className="choice-label">
+                    Talk
+                    <PhoneCall size={18} aria-hidden="true" />
+                  </span>
                 </button>
                 <label className="choice-select-label">
                   <span>Language</span>
@@ -1183,21 +1188,24 @@ function App() {
                   onClick={handleTextSelected}
                   onFocus={() => setSelectedChoice('text')}
                 >
+                  {/* #t=0.5 seeks the file so a real Raj frame paints as a still */}
                   <video
-                    src={AVATAR_IDLE_SRC}
+                    src={`${AVATAR_IDLE_SRC}#t=0.5`}
                     className="choice-text-still"
                     muted
                     playsInline
-                    preload="metadata"
+                    preload="auto"
                     aria-hidden="true"
                   />
-                  <span className="choice-label">Text</span>
                   <div className="text-preview" aria-hidden="true">
                     <span>What brings you in today?</span>
                     <span>How long has this been going on?</span>
                     <span>Any allergies or medicines?</span>
                   </div>
-                  <Keyboard size={22} aria-hidden="true" />
+                  <span className="choice-label">
+                    Text
+                    <Keyboard size={18} aria-hidden="true" />
+                  </span>
                 </button>
                 <label className="choice-select-label">
                   <span>Language</span>
