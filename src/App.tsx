@@ -1,7 +1,9 @@
 import {
   ArrowLeft,
+  Check,
   Keyboard,
   Mic,
+  Pencil,
   PhoneCall,
   Send,
   ShieldCheck,
@@ -23,7 +25,7 @@ import {
 import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
-type FlowPhase = 'speaking' | 'listening' | 'summary' | 'prescription' | 'download'
+type FlowPhase = 'speaking' | 'listening' | 'summary' | 'submitted'
 
 const SILENCE_ADVANCE_MS = 1500
 const TTS_SAFETY_BUFFER_MS = 1800
@@ -444,6 +446,8 @@ function TalkShell({
   const [openEditNote, setOpenEditNote] = useState('')
   const [summaryEditMessage, setSummaryEditMessage] = useState('')
   const [summaryEditListening, setSummaryEditListening] = useState(false)
+  const [editingSummaryField, setEditingSummaryField] = useState<IntakeFieldKey | null>(null)
+  const [inlineEditDraft, setInlineEditDraft] = useState('')
   const speech = useSpeechRecognition({
     language,
     continuous: true,
@@ -497,6 +501,8 @@ function TalkShell({
     setTypedPanelOpen(false)
     setReflectionText('')
     setSummaryEditDraft('')
+    setInlineEditDraft('')
+    setEditingSummaryField(null)
     setSummaryUseTypedFallback(false)
     setOpenEditNote('')
     setSummaryEditMessage('')
@@ -736,6 +742,8 @@ function TalkShell({
     setTypedPanelOpen(false)
     setReflectionText('')
     setSummaryEditDraft('')
+    setInlineEditDraft('')
+    setEditingSummaryField(null)
     setSummaryUseTypedFallback(false)
     setOpenEditNote('')
     setSummaryEditMessage('')
@@ -750,24 +758,99 @@ function TalkShell({
     setPhase('speaking')
   }
 
+  function startInlineEdit(field: IntakeFieldKey) {
+    setEditingSummaryField(field)
+    setInlineEditDraft(intakeData.answers[field].value)
+    setSummaryEditMessage('')
+  }
+
+  function saveInlineEdit() {
+    if (!editingSummaryField) return
+    setIntakeData((current) =>
+      withIntakeAnswer(current, editingSummaryField, inlineEditDraft, 'typed'),
+    )
+    setSummaryEditMessage(copy.editApplied)
+    setEditingSummaryField(null)
+    setInlineEditDraft('')
+  }
+
+  function submitSummary() {
+    speech.stop()
+    speech.reset()
+    cancelSpeechSynthesis()
+    setPhase('submitted')
+  }
+
   function renderConversationContent() {
     if (phase === 'summary') {
       return (
         <>
-          <p className="eyebrow">{copy.summaryTitle}</p>
-          <h2 id="talk-title">{copy.summaryTitle}</h2>
-          <p>{copy.closingSpoken}</p>
+          <div className="summary-head">
+            <p className="eyebrow">{copy.summaryTitle}</p>
+            <h2 id="talk-title">{copy.summaryTitle}</h2>
+            <p>{copy.closingSpoken}</p>
+          </div>
           <div className="summary-manuscript" data-testid="intake-summary">
             {INTAKE_FIELD_KEYS.map((field, fieldIndex) => {
               const answer = intakeData.answers[field]
+              const editing = editingSummaryField === field
+              const label = copy.fieldLabels[field]
               return (
                 <article
-                  className="summary-line"
+                  className={`summary-line ${editing ? 'editing' : ''}`}
                   key={field}
+                  data-summary-field={field}
                   style={{ animationDelay: `${fieldIndex * 95}ms` }}
                 >
-                  <strong>{copy.fieldLabels[field]}</strong>
-                  <p>{answer.value || copy.missingAnswer}</p>
+                  <div className="summary-line-head">
+                    <strong>{label}</strong>
+                    <button
+                      type="button"
+                      className="icon-only-action"
+                      onClick={() => startInlineEdit(field)}
+                      aria-label={`Edit ${label}`}
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                    </button>
+                  </div>
+                  {editing ? (
+                    <div className="inline-summary-edit">
+                      <textarea
+                        value={inlineEditDraft}
+                        onChange={(event) => setInlineEditDraft(event.target.value)}
+                        rows={3}
+                        aria-label={`Edit ${label}`}
+                        data-testid={`summary-edit-${field}`}
+                      />
+                      <div>
+                        <button
+                          type="button"
+                          className="icon-text-action solid"
+                          onPointerDown={(event) => {
+                            event.preventDefault()
+                            saveInlineEdit()
+                          }}
+                          onClick={saveInlineEdit}
+                        >
+                          <Check size={15} aria-hidden="true" />
+                          <span>Save</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-text-action"
+                          onClick={() => {
+                            setEditingSummaryField(null)
+                            setInlineEditDraft('')
+                          }}
+                        >
+                          <X size={15} aria-hidden="true" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p>{answer.value || copy.missingAnswer}</p>
+                  )}
                 </article>
               )
             })}
@@ -781,111 +864,38 @@ function TalkShell({
               </article>
             ) : null}
           </div>
-          <section className="summary-edit" aria-label={copy.summaryInvitation}>
+          <section className="summary-submit-bar" aria-label={copy.summaryInvitation}>
             <p>{summaryEditMessage || copy.summaryInvitation}</p>
-            {!summaryEditMessage ? (
-              <>
-                <p className="listening-status">
-                  {summaryUseTypedFallback
-                    ? speech.lastError?.message || copy.fallbackBody
-                    : summaryEditListening
-                      ? copy.summaryListeningStatus
-                      : copy.summaryPreparingStatus}
-                </p>
-                {!summaryUseTypedFallback ? (
-                  <button
-                    type="button"
-                    className="secondary-action"
-                    onClick={() => {
-                      speech.stop()
-                      setSummaryUseTypedFallback(true)
-                    }}
-                  >
-                    {copy.summaryTypeInstead}
-                  </button>
-                ) : null}
-                {summaryUseTypedFallback ? (
-                  <div className="typed-fallback">
-                    <textarea
-                      value={summaryEditDraft}
-                      onChange={(event) => setSummaryEditDraft(event.target.value)}
-                      placeholder={copy.editPlaceholder}
-                      rows={3}
-                    />
-                    <button
-                      type="button"
-                      className="primary-action compact"
-                      onClick={() => applySummaryEdit(summaryEditDraft, 'typed')}
-                      disabled={!summaryEditDraft.trim()}
-                    >
-                      {copy.applyEdit}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
+            <button
+              type="button"
+              className="primary-action compact"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                submitSummary()
+              }}
+              onClick={submitSummary}
+              data-testid="summary-submit"
+            >
+              Submit
+            </button>
           </section>
           <p className="answer-count">
             {Object.values(intakeData.answers).filter((answer) => answer.value).length}/
             {totalQuestions}
           </p>
-          <button
-            type="button"
-            className="primary-action compact"
-            onClick={() => setPhase('prescription')}
-          >
-            {copy.nextQuestion}
-          </button>
         </>
       )
     }
 
-    if (phase === 'prescription') {
+    if (phase === 'submitted') {
       return (
         <>
-          <p className="eyebrow">{copy.prescriptionTitle}</p>
-          <h2 id="talk-title">{copy.prescriptionTitle}</h2>
-          <p>{copy.prescriptionBody}</p>
-          <button
-            type="button"
-            className="primary-action compact"
-            onClick={() => setPhase('download')}
-          >
-            {copy.nextQuestion}
+          <p className="eyebrow">Submitted</p>
+          <h2 id="talk-title">Submitted</h2>
+          <p>Submitted — the existing payment/checkout flow continues here in production.</p>
+          <button type="button" className="secondary-action" onClick={restartScript}>
+            {copy.restart}
           </button>
-        </>
-      )
-    }
-
-    if (phase === 'download') {
-      const fileText = encodeURIComponent(
-        buildSummaryText(
-          intakeData,
-          language,
-          copy.fieldLabels,
-          copy.missingAnswer,
-          copy.openEditLabel,
-          openEditNote,
-        ),
-      )
-
-      return (
-        <>
-          <p className="eyebrow">{copy.downloadTitle}</p>
-          <h2 id="talk-title">{copy.downloadTitle}</h2>
-          <p>{copy.downloadBody}</p>
-          <div className="download-actions">
-            <a
-              className="primary-action compact"
-              href={`data:text/plain;charset=utf-8,${fileText}`}
-              download="talk-summary.txt"
-            >
-              {copy.downloadCta}
-            </a>
-            <button type="button" className="secondary-action" onClick={restartScript}>
-              {copy.restart}
-            </button>
-          </div>
         </>
       )
     }
