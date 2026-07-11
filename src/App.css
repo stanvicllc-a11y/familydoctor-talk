@@ -1513,6 +1513,110 @@ h1 {
   transition: width 0.25s ease;
 }
 
+/* --- Local-only upload UI (show-me photo + summary photo/report) ------------- */
+.visually-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.clinical-uploader {
+  display: grid;
+  gap: 8px;
+}
+
+.photo-add-btn {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: var(--fd-radius-sm);
+  background: var(--fd-primary);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(13, 148, 136, 0.28);
+}
+
+.photo-add-btn:active {
+  transform: translateY(1px);
+}
+
+.upload-thumb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--fd-radius);
+  background: linear-gradient(180deg, rgba(3, 18, 18, 0.74), rgba(3, 18, 18, 0.58));
+  backdrop-filter: blur(14px);
+}
+
+.upload-thumb {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.upload-thumb-meta {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 7px;
+}
+
+.upload-thumb-name {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-thumb-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.upload-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.upload-mini-btn.danger {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(127, 29, 29, 0.35);
+}
+
 .download-actions {
   display: grid;
   gap: 8px;

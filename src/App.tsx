@@ -1,11 +1,13 @@
 import {
   ArrowLeft,
+  Camera,
   Check,
   Keyboard,
   Mic,
   Pencil,
   PhoneCall,
   Send,
+  Trash2,
   Volume2,
   X,
 } from 'lucide-react'
@@ -36,6 +38,21 @@ type SelfViewStatus = 'loading' | 'ready' | 'blocked'
 type FlowPhase = 'speaking' | 'listening' | 'summary' | 'submitted'
 type AppMode = 'entry' | 'permissions' | 'talk'
 type TalkPermissionStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'
+
+// A locally-captured upload attached to the flow/consult state. LOCAL-ONLY for
+// now (object-URL preview, no backend call). `kind` records how the real image
+// pipeline should treat it at integration:
+//   'clinical' = body-area photo -> multimodal diagnosis (no OCR)
+//   'report'   = lab/report doc  -> v3.192 smart routing (OCR text vs multimodal)
+type FlowUpload = {
+  id: string
+  source: 'showme' | 'summary'
+  kind: 'clinical' | 'report'
+  name: string
+  mime: string
+  url: string
+  isImage: boolean
+}
 
 const SILENCE_ADVANCE_MS = 1500
 const TTS_SAFETY_BUFFER_MS = 1800
@@ -566,6 +583,11 @@ function TalkShell({
   const [summaryEditMessage, setSummaryEditMessage] = useState('')
   const [editingSummaryField, setEditingSummaryField] = useState<IntakeFieldKey | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState('')
+  // Locally-attached uploads (show-me clinical photo + summary photos/reports).
+  const [uploads, setUploads] = useState<FlowUpload[]>([])
+  const uploadsRef = useRef<FlowUpload[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const pendingUploadRef = useRef<{ source: FlowUpload['source']; kind: FlowUpload['kind'] } | null>(null)
   const speech = useSpeechRecognition({
     language,
     continuous: true,
@@ -595,6 +617,11 @@ function TalkShell({
   }, [activeField, activeQuestion.text, questionIndex])
 
   useEffect(() => {
+    uploadsRef.current = uploads
+  }, [uploads])
+
+  useEffect(() => {
+    clearUploads()
     setIntakeData(createEmptyIntake(language))
     setQuestionIndex(0)
     setTypedAnswer('')
@@ -762,7 +789,71 @@ function TalkShell({
     setTypedPanelOpen(false)
   }
 
+  // --- Local-only uploads (photos / reports) ---------------------------------
+  function openUploadPicker(source: FlowUpload['source'], kind: FlowUpload['kind'], accept: string) {
+    pendingUploadRef.current = { source, kind }
+    const input = fileInputRef.current
+    if (!input) return
+    input.accept = accept
+    input.value = ''
+    input.click()
+  }
+
+  function handleUploadChosen(fileList: FileList | null) {
+    const file = fileList?.[0]
+    const meta = pendingUploadRef.current
+    if (!file || !meta) return
+    const isImage = file.type.startsWith('image/')
+    const upload: FlowUpload = {
+      id: `${meta.source}-${Date.now()}`,
+      source: meta.source,
+      kind: meta.kind,
+      name: file.name,
+      mime: file.type,
+      url: URL.createObjectURL(file),
+      isImage,
+    }
+    // Attach to flow/consult state ONLY. No network call here.
+    // TODO(integration): send clinical image to multimodal diagnosis pipeline
+    //   (show-me photos, kind='clinical'); route summary uploads via the v3.192
+    //   image pipeline (OCR-vs-multimodal) — see Stage 4 hook.
+    setUploads((prev) => {
+      let base = prev
+      if (meta.source === 'showme') {
+        // The show-me step holds a single clinical photo — replace the previous.
+        const old = prev.find((u) => u.source === 'showme')
+        if (old) URL.revokeObjectURL(old.url)
+        base = prev.filter((u) => u.source !== 'showme')
+      }
+      return [...base, upload]
+    })
+    pendingUploadRef.current = null
+  }
+
+  function removeUpload(id: string) {
+    setUploads((prev) => {
+      const target = prev.find((u) => u.id === id)
+      if (target) URL.revokeObjectURL(target.url)
+      return prev.filter((u) => u.id !== id)
+    })
+  }
+
+  function clearUploads() {
+    setUploads((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u.url))
+      return []
+    })
+  }
+
+  // Revoke any object URLs when the Talk shell unmounts.
+  useEffect(() => {
+    return () => {
+      uploadsRef.current.forEach((u) => URL.revokeObjectURL(u.url))
+    }
+  }, [])
+
   function restartScript() {
+    clearUploads()
     setQuestionIndex(0)
     setIntakeData(createEmptyIntake(language))
     setTypedAnswer('')
@@ -801,6 +892,52 @@ function TalkShell({
     speech.reset()
     cancelSpeechSynthesis()
     setPhase('submitted')
+  }
+
+  // Prominent "Add a photo" on the show-me step. accept="image/*" WITHOUT capture
+  // so mobile offers BOTH the camera and the photo library. Local-only.
+  function renderShowMePhoto() {
+    const photo = uploads.find((u) => u.source === 'showme')
+    return (
+      <div className="clinical-uploader" data-testid="showme-uploader">
+        {photo ? (
+          <div className="upload-thumb-row">
+            <img className="upload-thumb" src={photo.url} alt="Attached clinical photo" />
+            <div className="upload-thumb-meta">
+              <span className="upload-thumb-name">Photo attached</span>
+              <div className="upload-thumb-actions">
+                <button
+                  type="button"
+                  className="upload-mini-btn"
+                  onClick={() => openUploadPicker('showme', 'clinical', 'image/*')}
+                >
+                  <Camera size={14} aria-hidden="true" />
+                  <span>Replace</span>
+                </button>
+                <button
+                  type="button"
+                  className="upload-mini-btn danger"
+                  onClick={() => removeUpload(photo.id)}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="photo-add-btn"
+            onClick={() => openUploadPicker('showme', 'clinical', 'image/*')}
+            data-testid="showme-add-photo"
+          >
+            <Camera size={20} aria-hidden="true" />
+            <span>Add a photo</span>
+          </button>
+        )}
+      </div>
+    )
   }
 
   function renderConversationContent() {
@@ -967,6 +1104,7 @@ function TalkShell({
             <span />
           </div>
         </div>
+        {activeField === 'showMe' ? renderShowMePhoto() : null}
         <div className="progress-track" aria-label={`Question progress ${progress}%`}>
           <span style={{ width: `${progress}%` }} />
         </div>
@@ -1048,6 +1186,16 @@ function TalkShell({
       <div className="conversation-panel" data-testid="control-area" data-phase={phase}>
         {renderConversationContent()}
       </div>
+      {/* Shared hidden picker for all local-only uploads (show-me + summary). */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="visually-hidden-input"
+        onChange={(event) => handleUploadChosen(event.target.files)}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
     </section>
   )
 }
