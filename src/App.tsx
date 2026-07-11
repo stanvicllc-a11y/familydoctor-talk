@@ -123,62 +123,6 @@ function buildKeywordReflection(answer: string, language: LanguageKey, fallback:
     : `Main ${keywordText} wali baat note kar raha hoon aur full picture saath mein rakh raha hoon.`
 }
 
-function inferEditField(editText: string): IntakeFieldKey | null {
-  const normalizedText = editText.toLowerCase()
-  const matches = (terms: string[]) => terms.some((term) => normalizedText.includes(term))
-
-  if (matches(['allerg', 'allergy'])) return 'allergies'
-  if (matches(['medicine', 'medication', 'tablet', 'dawai', 'supplement'])) return 'currentMedications'
-  if (matches(['started', 'since', 'duration', 'kab se'])) return 'duration'
-  if (matches(['worse', 'better', 'same'])) return 'betterWorse'
-  if (matches(['severe', 'severity', 'bad', 'impact'])) return 'severity'
-  if (matches(['rash', 'swelling', 'visible', 'photo', 'show'])) return 'showMe'
-  if (matches(['throat', 'mouth', 'ahh', 'tonsil'])) return 'throatCheck'
-  if (matches(['fever', 'cough', 'pain', 'vomit', 'breath', 'symptom', 'dard'])) {
-    return 'associatedSymptoms'
-  }
-  if (matches(['travel', 'food', 'khaya'])) return 'recentTravel'
-  if (matches(['sick', 'contact', 'around', 'aas-paas'])) return 'sickContacts'
-  if (matches(['history'])) return 'historyIntro'
-  if (matches(['condition', 'diabetes', 'pressure', 'asthma'])) return 'conditions'
-  if (matches(['surgery', 'operation'])) return 'surgeries'
-  if (matches(['pregnant', 'pregnancy'])) return 'pregnancy'
-  if (matches(['main', 'problem', 'complaint'])) return 'chiefComplaint'
-
-  return null
-}
-
-function buildSummaryText(
-  intakeData: IntakeData,
-  language: LanguageKey,
-  labels: Record<IntakeFieldKey, string>,
-  missingAnswer: string,
-  openEditLabel: string,
-  openEditNote: string,
-) {
-  const lines = [
-    'TheFamilyDoctor.AI Talk intake summary',
-    `Language: ${language}`,
-    `Generated: ${new Date().toISOString()}`,
-    '',
-    ...INTAKE_FIELD_KEYS.flatMap((field) => [
-      labels[field],
-      intakeData.answers[field].value || missingAnswer,
-      '',
-    ]),
-  ]
-
-  if (openEditNote) {
-    lines.push(openEditLabel, openEditNote, '')
-  }
-
-  lines.push(
-    'Placeholder note: this staging file was generated locally in the browser from in-memory answers. No backend write or prescription generation occurred.',
-  )
-
-  return lines.join('\n')
-}
-
 function estimateSpeechSafetyMs(text: string) {
   const words = text.trim().split(/\s+/).filter(Boolean).length
   return Math.max(3500, words * 430 + TTS_SAFETY_BUFFER_MS)
@@ -441,11 +385,8 @@ function TalkShell({
   const [typedPanelOpen, setTypedPanelOpen] = useState(false)
   const [intakeData, setIntakeData] = useState<IntakeData>(() => createEmptyIntake(language))
   const [reflectionText, setReflectionText] = useState('')
-  const [summaryEditDraft, setSummaryEditDraft] = useState('')
-  const [summaryUseTypedFallback, setSummaryUseTypedFallback] = useState(false)
   const [openEditNote, setOpenEditNote] = useState('')
   const [summaryEditMessage, setSummaryEditMessage] = useState('')
-  const [summaryEditListening, setSummaryEditListening] = useState(false)
   const [editingSummaryField, setEditingSummaryField] = useState<IntakeFieldKey | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState('')
   const speech = useSpeechRecognition({
@@ -481,9 +422,6 @@ function TalkShell({
     questionIndex,
     questionText: activeQuestion.text,
   })
-  const summarySpokenRef = useRef(false)
-  const summaryEditAttemptRef = useRef(false)
-  const summaryEditTokenRef = useRef('')
 
   useEffect(() => {
     activeTurnRef.current = {
@@ -500,17 +438,11 @@ function TalkShell({
     setUseTypedFallback(false)
     setTypedPanelOpen(false)
     setReflectionText('')
-    setSummaryEditDraft('')
     setInlineEditDraft('')
     setEditingSummaryField(null)
-    setSummaryUseTypedFallback(false)
     setOpenEditNote('')
     setSummaryEditMessage('')
-    setSummaryEditListening(false)
     hiddenTranscriptRef.current = []
-    summarySpokenRef.current = false
-    summaryEditAttemptRef.current = false
-    summaryEditTokenRef.current = ''
     setPhase('speaking')
     captureTokenRef.current = ''
     speech.reset()
@@ -597,75 +529,6 @@ function TalkShell({
     }
   }, [phase, speech.status, speech.transcript, speech.lastError])
 
-  useEffect(() => {
-    if (phase !== 'summary') return
-    let cancelled = false
-
-    function beginSummaryEditListening() {
-      if (cancelled || summaryEditAttemptRef.current || summaryEditMessage) return
-      summaryEditAttemptRef.current = true
-      setSummaryEditListening(true)
-      setSummaryUseTypedFallback(false)
-      speech.reset()
-      const started = speech.start()
-      if (!started) {
-        setSummaryUseTypedFallback(true)
-      }
-    }
-
-    if (!summarySpokenRef.current) {
-      summarySpokenRef.current = true
-      setSummaryEditListening(false)
-      const safetyTimer = window.setTimeout(() => {
-        cancelSpeechSynthesis()
-        beginSummaryEditListening()
-      }, estimateSpeechSafetyMs(copy.closingSpoken))
-
-      void speakUtterance(copy.closingSpoken, {
-        language,
-        onEnd: () => {
-          window.clearTimeout(safetyTimer)
-          beginSummaryEditListening()
-        },
-        onError: () => {
-          window.clearTimeout(safetyTimer)
-          beginSummaryEditListening()
-        },
-      }).then((dispatched) => {
-        if (!dispatched) {
-          window.clearTimeout(safetyTimer)
-          beginSummaryEditListening()
-        }
-      })
-
-      return () => {
-        cancelled = true
-        window.clearTimeout(safetyTimer)
-      }
-    }
-
-    beginSummaryEditListening()
-
-    return () => {
-      cancelled = true
-    }
-  }, [phase, summaryEditMessage, language, copy.closingSpoken])
-
-  useEffect(() => {
-    if (phase !== 'summary' || summaryEditMessage) return
-    if (speech.status === 'complete' && speech.transcript.trim()) {
-      applySummaryEdit(speech.transcript, 'speech')
-      return
-    }
-    if (
-      speech.status === 'unsupported' ||
-      speech.lastError?.shouldUseTypedFallback ||
-      speech.status === 'error'
-    ) {
-      setSummaryUseTypedFallback(true)
-    }
-  }, [phase, summaryEditMessage, speech.status, speech.transcript, speech.lastError])
-
   function captureAnswer(
     rawAnswer: string,
     source: IntakeAnswerSource,
@@ -696,37 +559,7 @@ function TalkShell({
       return
     }
 
-    summaryEditAttemptRef.current = false
     setPhase('summary')
-  }
-
-  function applySummaryEdit(rawEdit: string, source: IntakeAnswerSource) {
-    const edit = rawEdit.trim()
-    if (!edit) return
-
-    const editToken = `${source}:${edit}`
-    if (summaryEditTokenRef.current === editToken) return
-    summaryEditTokenRef.current = editToken
-
-    speech.stop()
-    hiddenTranscriptRef.current = [
-      ...hiddenTranscriptRef.current,
-      `Patient ${source} edit: ${edit}`,
-    ]
-
-    const field = inferEditField(edit)
-    if (field) {
-      setIntakeData((current) => withIntakeAnswer(current, field, edit, source))
-      setSummaryEditMessage(copy.editApplied)
-    } else {
-      setOpenEditNote(edit)
-      setSummaryEditMessage(copy.editNoted)
-    }
-
-    setSummaryUseTypedFallback(false)
-    setSummaryEditDraft('')
-    setSummaryEditListening(false)
-    speech.reset()
   }
 
   function submitTypedAnswer() {
@@ -741,17 +574,11 @@ function TalkShell({
     setUseTypedFallback(false)
     setTypedPanelOpen(false)
     setReflectionText('')
-    setSummaryEditDraft('')
     setInlineEditDraft('')
     setEditingSummaryField(null)
-    setSummaryUseTypedFallback(false)
     setOpenEditNote('')
     setSummaryEditMessage('')
-    setSummaryEditListening(false)
     hiddenTranscriptRef.current = []
-    summarySpokenRef.current = false
-    summaryEditAttemptRef.current = false
-    summaryEditTokenRef.current = ''
     captureTokenRef.current = ''
     speech.reset()
     cancelSpeechSynthesis()
