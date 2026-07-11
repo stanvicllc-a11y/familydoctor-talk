@@ -1072,8 +1072,8 @@ function App() {
     >
       <main className="app-shell">
         {mode === 'entry' ? (
-          <section className="entry-screen" aria-labelledby="entry-title">
-            <div className="entry-copy">
+          <section className="choice-screen" aria-labelledby="entry-title">
+            <div className="choice-copy">
               <p className="eyebrow">{copy.entry.eyebrow}</p>
               <h1 id="entry-title">{copy.entry.title}</h1>
               <p className="intro">{copy.entry.subtitle}</p>
@@ -1082,24 +1082,50 @@ function App() {
               </p>
             </div>
 
-            <div className="entry-actions">
-              <div className="language-toggle" aria-label={copy.languageLabel}>
-                {Object.values(content).map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={item.key === language ? 'active' : ''}
-                    aria-pressed={item.key === language}
-                    onClick={() => setLanguage(item.key)}
-                  >
-                    {item.shortLabel}
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="primary-action" onClick={startTalk}>
-                <PhoneCall size={22} aria-hidden="true" />
-                {copy.entry.cta}
+            <div className="choice-grid" data-testid="choice-grid">
+              <article className="choice-card active" data-testid="choice-talk">
+                <button type="button" className="choice-main" onClick={startTalk}>
+                  <span className="choice-icon">
+                    <PhoneCall size={24} aria-hidden="true" />
+                  </span>
+                  <span>
+                    <strong>Talk</strong>
+                    <small>English / Hindi</small>
+                  </span>
+                  <Send size={19} aria-hidden="true" />
+                </button>
+                <div className="language-toggle compact" aria-label={copy.languageLabel}>
+                  {Object.values(content).map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={item.key === language ? 'active' : ''}
+                      aria-pressed={item.key === language}
+                      onClick={() => setLanguage(item.key)}
+                    >
+                      {item.key === 'hinglish' ? 'Hindi' : item.shortLabel}
+                    </button>
+                  ))}
+                </div>
+              </article>
+
+              <button
+                type="button"
+                className="choice-card disabled"
+                disabled
+                aria-disabled="true"
+                data-testid="choice-text"
+              >
+                <span className="choice-icon muted">
+                  <Keyboard size={24} aria-hidden="true" />
+                </span>
+                <span>
+                  <strong>Text</strong>
+                  <small>Coming soon</small>
+                </span>
+                <X size={18} aria-hidden="true" />
               </button>
+
               <div className="privacy-strip">
                 <ShieldCheck size={18} aria-hidden="true" />
                 <span>{copy.entry.privacy}</span>

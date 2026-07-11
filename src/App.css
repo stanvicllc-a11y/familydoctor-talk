@@ -365,7 +365,9 @@
 .ghost-action,
 .replay-question,
 .primary-action,
-.secondary-action {
+.secondary-action,
+.choice-main,
+.choice-card.disabled {
   border: 0;
   font: inherit;
   cursor: pointer;
@@ -386,7 +388,18 @@
   color: var(--fd-primary-deep);
 }
 
-.entry-screen {
+.language-toggle.compact {
+  width: calc(100% - 34px);
+  margin: 0 17px 17px;
+  background: #f8fcfb;
+}
+
+.language-toggle.compact button {
+  flex: 1;
+}
+
+.entry-screen,
+.choice-screen {
   width: min(100%, 940px);
   min-height: 100%;
   margin: 0 auto;
@@ -396,9 +409,87 @@
   gap: 28px;
 }
 
-.entry-copy {
+.entry-copy,
+.choice-copy {
   display: grid;
   gap: 14px;
+}
+
+.choice-grid {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 12px;
+}
+
+.choice-card {
+  width: 100%;
+  min-height: 82px;
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-sm);
+  background: #ffffff;
+  color: var(--fd-primary-deep);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.choice-card.active {
+  border-color: rgba(13, 148, 136, 0.34);
+  box-shadow: 0 18px 42px rgba(13, 148, 136, 0.15);
+}
+
+.choice-card.disabled {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 17px;
+  color: #7b8b88;
+  background: #f5f8f7;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.choice-main {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 17px;
+  text-align: left;
+  color: inherit;
+}
+
+.choice-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fd-radius-sm);
+  color: #ffffff;
+  background: var(--fd-primary);
+}
+
+.choice-icon.muted {
+  color: #60716d;
+  background: #e5eeeb;
+}
+
+.choice-card strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.choice-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--fd-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.choice-card.disabled small {
+  color: #7b8b88;
 }
 
 .eyebrow {
