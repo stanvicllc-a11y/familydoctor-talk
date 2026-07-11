@@ -115,6 +115,47 @@ async function requestTalkMediaStream(existingStream: MediaStream | null) {
   }
 }
 
+async function unlockSessionMediaPlayback() {
+  const attempts: Array<Promise<unknown>> = []
+
+  const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
+  if (AudioContextClass) {
+    try {
+      const audio = new AudioContextClass()
+      attempts.push(audio.resume().finally(() => audio.close()))
+    } catch {
+      // Browser support varies; the video unlock below is the main path.
+    }
+  }
+
+  try {
+    const video = document.createElement('video')
+    video.src = AVATAR_LISTENING_SRC
+    video.muted = true
+    video.playsInline = true
+    video.preload = 'auto'
+    video.style.position = 'fixed'
+    video.style.width = '1px'
+    video.style.height = '1px'
+    video.style.opacity = '0'
+    video.style.pointerEvents = 'none'
+    document.body.appendChild(video)
+    attempts.push(
+      video.play().then(() => {
+        video.pause()
+        video.currentTime = 0
+      }).finally(() => {
+        video.remove()
+      }),
+    )
+  } catch {
+    // The avatar layer has its own per-video fallback if this cannot run.
+  }
+
+  const results = await Promise.allSettled(attempts)
+  return results.some((result) => result.status === 'fulfilled')
+}
+
 function playPlaceholderTone() {
   const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
   if (!AudioContextClass) return
@@ -196,15 +237,22 @@ function avatarLabel(asset: AvatarAsset, active: boolean) {
 function AvatarVideoLayer({
   asset,
   active,
+  mediaUnlocked,
   onClipEnded,
   layer,
 }: {
   asset: AvatarAsset
   active: boolean
+  mediaUnlocked: boolean
   onClipEnded: () => void
   layer: string
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const onClipEndedRef = useRef(onClipEnded)
+
+  useEffect(() => {
+    onClipEndedRef.current = onClipEnded
+  }, [onClipEnded])
 
   useEffect(() => {
     const video = videoRef.current
@@ -214,10 +262,15 @@ function AvatarVideoLayer({
     const play = video.play()
     if (play && typeof play.catch === 'function') {
       play.catch(() => {
-        // Browser autoplay policy can still require a tap on some devices.
+        if (asset.kind === 'clip' && active) {
+          video.muted = true
+          video.play().catch(() => {
+            window.setTimeout(() => onClipEndedRef.current(), 900)
+          })
+        }
       })
     }
-  }, [asset.src, asset.kind, active])
+  }, [asset.src, asset.kind, active, mediaUnlocked])
 
   return (
     <video
@@ -230,9 +283,12 @@ function AvatarVideoLayer({
       loop={asset.kind !== 'clip' || !active}
       playsInline
       preload="auto"
+      disablePictureInPicture
+      controls={false}
       aria-label={avatarLabel(asset, active)}
       data-avatar-mode={asset.kind}
       data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.missingClipId || asset.kind}
+      data-media-unlocked={mediaUnlocked ? 'true' : 'false'}
       onEnded={() => {
         if (asset.kind === 'clip' && active) onClipEnded()
       }}
@@ -243,11 +299,13 @@ function AvatarVideoLayer({
 function DoctorAvatar({
   asset,
   active,
+  mediaUnlocked,
   preloadSrc,
   onClipEnded,
 }: {
   asset: AvatarAsset
   active: boolean
+  mediaUnlocked: boolean
   preloadSrc?: string
   onClipEnded: () => void
 }) {
@@ -283,6 +341,7 @@ function DoctorAvatar({
         <AvatarVideoLayer
           asset={previousAsset}
           active={false}
+          mediaUnlocked={mediaUnlocked}
           layer={`previous ${fadeArmed ? 'fade-out' : 'hold'}`}
           onClipEnded={() => undefined}
         />
@@ -290,6 +349,7 @@ function DoctorAvatar({
       <AvatarVideoLayer
         asset={currentAsset}
         active={active}
+        mediaUnlocked={mediaUnlocked}
         layer={previousAsset ? `current ${fadeArmed ? 'fade-in' : 'hold'}` : 'current'}
         onClipEnded={onClipEnded}
       />
@@ -386,11 +446,13 @@ function TalkShell({
   language,
   mediaStream,
   permissionStatus,
+  mediaUnlocked,
   onBack,
 }: {
   language: LanguageKey
   mediaStream: MediaStream | null
   permissionStatus: TalkPermissionStatus
+  mediaUnlocked: boolean
   onBack: () => void
 }) {
   const copy = content[language].talk
@@ -858,6 +920,7 @@ function TalkShell({
           <DoctorAvatar
             asset={displayedAvatarAsset}
             active={phase === 'speaking'}
+            mediaUnlocked={mediaUnlocked}
             preloadSrc={preloadAvatarSrc}
             onClipEnded={handleAvatarClipEnded}
           />
@@ -881,6 +944,7 @@ function App() {
   const [talkPermissionStatus, setTalkPermissionStatus] = useState<TalkPermissionStatus>('idle')
   const [talkPermissionMessage, setTalkPermissionMessage] = useState('Preparing camera and microphone...')
   const [talkMediaStream, setTalkMediaStream] = useState<MediaStream | null>(null)
+  const [mediaUnlocked, setMediaUnlocked] = useState(false)
   const copy = content[language]
 
   useEffect(() => {
@@ -930,6 +994,8 @@ function App() {
     setMode('permissions')
     setTalkPermissionStatus('requesting')
     setTalkPermissionMessage('Allow camera and microphone once to start Talk.')
+    const unlocked = await unlockSessionMediaPlayback()
+    setMediaUnlocked(unlocked)
     primeSpeechSynthesis(language)
 
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
@@ -1050,6 +1116,7 @@ function App() {
             language={language}
             mediaStream={talkMediaStream}
             permissionStatus={talkPermissionStatus}
+            mediaUnlocked={mediaUnlocked}
             onBack={() => setMode('entry')}
           />
         )}
