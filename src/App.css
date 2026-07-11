@@ -664,6 +664,7 @@ h1 {
   inset: 0;
   display: block;
   overflow: hidden;
+  background: #061c1b;
 }
 
 .doctor-avatar img,
@@ -681,6 +682,7 @@ h1 {
   background: #041f1e;
   opacity: 1;
   transition: opacity 280ms ease;
+  will-change: opacity;
 }
 
 .doctor-avatar-video.current.hold,

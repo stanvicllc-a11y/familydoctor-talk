@@ -238,37 +238,88 @@ function AvatarVideoLayer({
   asset,
   active,
   mediaUnlocked,
+  onReady,
   onClipEnded,
   layer,
 }: {
   asset: AvatarAsset
   active: boolean
   mediaUnlocked: boolean
+  onReady?: () => void
   onClipEnded: () => void
   layer: string
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const onClipEndedRef = useRef(onClipEnded)
+  const onReadyRef = useRef(onReady)
 
   useEffect(() => {
     onClipEndedRef.current = onClipEnded
   }, [onClipEnded])
 
   useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
+
+  useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
+    let cancelled = false
+    let hasFrame = video.readyState >= 2
+    let playbackStarted = false
+
+    function notifyReady() {
+      if (cancelled || !hasFrame || !playbackStarted) return
+      video.dataset.painted = 'true'
+      window.requestAnimationFrame(() => {
+        if (!cancelled) onReadyRef.current?.()
+      })
+    }
+
+    function markFrameReady() {
+      hasFrame = true
+      notifyReady()
+    }
+
     video.load()
+    if (hasFrame) notifyReady()
+    video.addEventListener('loadeddata', markFrameReady, { once: true })
+    video.addEventListener('canplay', markFrameReady, { once: true })
+
     const play = video.play()
     if (play && typeof play.catch === 'function') {
-      play.catch(() => {
-        if (asset.kind === 'clip' && active) {
+      play
+        .then(() => {
+          playbackStarted = true
+          notifyReady()
+        })
+        .catch(() => {
+          if (asset.kind === 'clip' && active) {
+            video.dataset.autoplayBlocked = 'true'
+          }
           video.muted = true
-          video.play().catch(() => {
-            window.setTimeout(() => onClipEndedRef.current(), 900)
-          })
-        }
-      })
+          video
+            .play()
+            .then(() => {
+              playbackStarted = true
+              notifyReady()
+            })
+            .catch(() => {
+              if (asset.kind === 'clip' && active) {
+                window.setTimeout(() => onClipEndedRef.current(), 900)
+              }
+            })
+        })
+    } else {
+      playbackStarted = true
+      notifyReady()
+    }
+
+    return () => {
+      cancelled = true
+      video.removeEventListener('loadeddata', markFrameReady)
+      video.removeEventListener('canplay', markFrameReady)
     }
   }, [asset.src, asset.kind, active, mediaUnlocked])
 
@@ -289,6 +340,7 @@ function AvatarVideoLayer({
       data-avatar-mode={asset.kind}
       data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.missingClipId || asset.kind}
       data-media-unlocked={mediaUnlocked ? 'true' : 'false'}
+      data-painted="false"
       onEnded={() => {
         if (asset.kind === 'clip' && active) onClipEnded()
       }}
@@ -313,6 +365,7 @@ function DoctorAvatar({
   const [previousAsset, setPreviousAsset] = useState<AvatarAsset | null>(null)
   const [fadeArmed, setFadeArmed] = useState(true)
   const currentAssetRef = useRef(asset)
+  const transitionTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const currentKey = avatarAssetKey(currentAssetRef.current)
@@ -322,18 +375,34 @@ function DoctorAvatar({
       return
     }
 
+    if (transitionTimerRef.current !== null) {
+      window.clearTimeout(transitionTimerRef.current)
+      transitionTimerRef.current = null
+    }
     setPreviousAsset(currentAssetRef.current)
     currentAssetRef.current = asset
     setCurrentAsset(asset)
     setFadeArmed(false)
 
-    const raf = window.requestAnimationFrame(() => setFadeArmed(true))
-    const timer = window.setTimeout(() => setPreviousAsset(null), 320)
     return () => {
-      window.cancelAnimationFrame(raf)
-      window.clearTimeout(timer)
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current)
+        transitionTimerRef.current = null
+      }
     }
   }, [asset])
+
+  function finishIncomingPaint() {
+    if (!previousAsset) return
+    setFadeArmed(true)
+    if (transitionTimerRef.current !== null) {
+      window.clearTimeout(transitionTimerRef.current)
+    }
+    transitionTimerRef.current = window.setTimeout(() => {
+      setPreviousAsset(null)
+      transitionTimerRef.current = null
+    }, 380)
+  }
 
   return (
     <>
@@ -350,6 +419,7 @@ function DoctorAvatar({
         asset={currentAsset}
         active={active}
         mediaUnlocked={mediaUnlocked}
+        onReady={finishIncomingPaint}
         layer={previousAsset ? `current ${fadeArmed ? 'fade-in' : 'hold'}` : 'current'}
         onClipEnded={onClipEnded}
       />
