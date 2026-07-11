@@ -1192,9 +1192,9 @@ function App() {
                     aria-hidden="true"
                   />
                   <div className="text-preview" aria-hidden="true">
-                    <span>What brings you in today?</span>
-                    <span>How long has this been going on?</span>
-                    <span>Any allergies or medicines?</span>
+                    <span>What brings you in?</span>
+                    <span>How long has it been?</span>
+                    <span>Any allergies?</span>
                   </div>
                   <span className="choice-label">
                     Text
