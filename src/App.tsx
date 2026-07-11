@@ -2,8 +2,10 @@ import {
   ArrowLeft,
   Camera,
   Check,
+  FileText,
   Keyboard,
   Mic,
+  Paperclip,
   Pencil,
   PhoneCall,
   Send,
@@ -940,6 +942,55 @@ function TalkShell({
     )
   }
 
+  // Optional photo/report uploader on the summary page. accept images AND pdf so a
+  // lab/report doc works too (camera/gallery/file). Tagged 'report' -> at
+  // integration this routes via the v3.192 smart pipeline (OCR text vs multimodal).
+  function renderSummaryUploader() {
+    const items = uploads.filter((u) => u.source === 'summary')
+    return (
+      <section className="summary-upload-card" data-testid="summary-uploader" aria-label="Add a photo or report">
+        <span className="summary-card-label">Add a photo or report (optional)</span>
+        {items.length ? (
+          <div className="summary-upload-items">
+            {items.map((item) => (
+              <div className="summary-upload-item" key={item.id}>
+                {item.isImage ? (
+                  <img className="upload-thumb" src={item.url} alt={item.name} />
+                ) : (
+                  <span className="doc-chip">
+                    <FileText size={15} aria-hidden="true" />
+                    <span className="doc-chip-name">{item.name}</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="summary-remove-btn"
+                  onClick={() => removeUpload(item.id)}
+                  aria-label={`Remove ${item.name}`}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  <span>Remove</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="summary-upload-add"
+          onClick={() => openUploadPicker('summary', 'report', 'image/*,application/pdf')}
+          data-testid="summary-add-upload"
+        >
+          <Paperclip size={16} aria-hidden="true" />
+          <span>{items.length ? 'Add another' : 'Add a photo or report'}</span>
+        </button>
+        {/* TODO(integration): route summary upload via v3.192 image pipeline
+            (OCR-vs-multimodal): text-bearing report -> OCR to text; clinical photo
+            -> multimodal; genuinely unreadable -> soft re-upload prompt. */}
+      </section>
+    )
+  }
+
   function renderConversationContent() {
     if (phase === 'summary') {
       const answeredCount = Object.values(intakeData.answers).filter((answer) => answer.value).length
@@ -1036,6 +1087,7 @@ function TalkShell({
                 <p className="summary-card-answer">{openEditNote}</p>
               </article>
             ) : null}
+            {renderSummaryUploader()}
           </div>
 
           <div className="summary-footer">

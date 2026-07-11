@@ -1617,6 +1617,106 @@ h1 {
   background: rgba(127, 29, 29, 0.35);
 }
 
+/* Summary-page uploader (light theme; sits at the end of the scrolling card list) */
+.summary-upload-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(13, 148, 136, 0.5);
+  border-radius: var(--fd-radius-sm);
+  background: var(--fd-teal-50);
+}
+
+.summary-upload-items {
+  display: grid;
+  gap: 8px;
+}
+
+.summary-upload-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--fd-border);
+  border-radius: var(--fd-radius-sm);
+  background: #ffffff;
+}
+
+.summary-upload-item .upload-thumb {
+  width: 46px;
+  height: 46px;
+  border-color: var(--fd-border);
+}
+
+.doc-chip {
+  min-width: 0;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--fd-primary-deep);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.doc-chip svg {
+  flex: 0 0 auto;
+  color: var(--fd-primary);
+}
+
+.doc-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-upload-item .upload-thumb + .summary-remove-btn,
+.summary-upload-item .doc-chip + .summary-remove-btn {
+  margin-left: auto;
+}
+
+.summary-remove-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(180, 35, 24, 0.28);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #b42318;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.summary-upload-add {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--fd-primary);
+  border-radius: var(--fd-radius-sm);
+  background: #ffffff;
+  color: var(--fd-primary-deep);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.summary-upload-add:hover {
+  background: #ffffff;
+  border-color: var(--fd-primary-deep);
+}
+
+.summary-upload-add svg {
+  color: var(--fd-primary);
+}
+
 .download-actions {
   display: grid;
   gap: 8px;
