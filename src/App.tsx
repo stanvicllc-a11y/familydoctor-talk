@@ -28,6 +28,7 @@ type FlowPhase = 'speaking' | 'listening' | 'summary' | 'prescription' | 'downlo
 const SILENCE_ADVANCE_MS = 1500
 const TTS_SAFETY_BUFFER_MS = 1800
 const AVATAR_IDLE_SRC = '/talk-avatars/idle_raj_en.mp4'
+const AVATAR_LISTENING_SRC = '/talk-avatars/raj_listening_loop_en.mp4'
 const AVATAR_CLIP_SRC: Partial<Record<AvatarClipId, string>> = {
   g1: '/talk-avatars/raj_g1_en.mp4',
   q_duration: '/talk-avatars/raj_q_duration_en.mp4',
@@ -61,6 +62,7 @@ const FALLBACK_PATIENTS: ChromePatient[] = [
 
 type AvatarAsset =
   | { kind: 'clip'; clipId: AvatarClipId; src: string }
+  | { kind: 'listening'; src: string }
   | { kind: 'idle'; src: string; missingClipId?: AvatarClipId }
 
 declare global {
@@ -192,14 +194,26 @@ function resolveAvatarAsset(language: LanguageKey, question?: IntakeQuestion): A
   return { kind: 'clip', clipId: question.clipId, src: clipSrc }
 }
 
-function DoctorAvatar({
+function avatarAssetKey(asset: AvatarAsset) {
+  return `${asset.kind}:${asset.src}:${asset.kind === 'clip' ? asset.clipId : asset.kind === 'idle' ? asset.missingClipId || 'idle' : 'loop'}`
+}
+
+function avatarLabel(asset: AvatarAsset, active: boolean) {
+  if (asset.kind === 'clip' && active) return `Raj filmed clip ${asset.clipId}`
+  if (asset.kind === 'listening') return 'Raj listening avatar loop'
+  return 'Raj idle avatar loop'
+}
+
+function AvatarVideoLayer({
   asset,
   active,
   onClipEnded,
+  layer,
 }: {
   asset: AvatarAsset
   active: boolean
   onClipEnded: () => void
+  layer: string
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
@@ -218,22 +232,82 @@ function DoctorAvatar({
 
   return (
     <video
-      key={`${asset.kind}:${asset.src}:${active ? 'active' : 'idle'}`}
+      key={`${layer}:${avatarAssetKey(asset)}`}
       ref={videoRef}
       src={asset.src}
-      className="doctor-avatar-video"
+      className={`doctor-avatar-video ${layer}`}
       autoPlay
-      muted={asset.kind === 'idle' || !active}
-      loop={asset.kind === 'idle' || !active}
+      muted={asset.kind !== 'clip' || !active}
+      loop={asset.kind !== 'clip' || !active}
       playsInline
       preload="auto"
-      aria-label={asset.kind === 'clip' && active ? `Raj filmed clip ${asset.clipId}` : 'Raj idle avatar loop'}
+      aria-label={avatarLabel(asset, active)}
       data-avatar-mode={asset.kind}
-      data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.missingClipId || 'idle'}
+      data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.kind === 'idle' ? asset.missingClipId || 'idle' : 'listening'}
       onEnded={() => {
         if (asset.kind === 'clip' && active) onClipEnded()
       }}
     />
+  )
+}
+
+function DoctorAvatar({
+  asset,
+  active,
+  preloadSrc,
+  onClipEnded,
+}: {
+  asset: AvatarAsset
+  active: boolean
+  preloadSrc?: string
+  onClipEnded: () => void
+}) {
+  const [currentAsset, setCurrentAsset] = useState(asset)
+  const [previousAsset, setPreviousAsset] = useState<AvatarAsset | null>(null)
+  const [fadeArmed, setFadeArmed] = useState(true)
+  const currentAssetRef = useRef(asset)
+
+  useEffect(() => {
+    const currentKey = avatarAssetKey(currentAssetRef.current)
+    const nextKey = avatarAssetKey(asset)
+    if (currentKey === nextKey) {
+      currentAssetRef.current = asset
+      return
+    }
+
+    setPreviousAsset(currentAssetRef.current)
+    currentAssetRef.current = asset
+    setCurrentAsset(asset)
+    setFadeArmed(false)
+
+    const raf = window.requestAnimationFrame(() => setFadeArmed(true))
+    const timer = window.setTimeout(() => setPreviousAsset(null), 320)
+    return () => {
+      window.cancelAnimationFrame(raf)
+      window.clearTimeout(timer)
+    }
+  }, [asset])
+
+  return (
+    <>
+      {previousAsset ? (
+        <AvatarVideoLayer
+          asset={previousAsset}
+          active={false}
+          layer={`previous ${fadeArmed ? 'fade-out' : 'hold'}`}
+          onClipEnded={() => undefined}
+        />
+      ) : null}
+      <AvatarVideoLayer
+        asset={currentAsset}
+        active={active}
+        layer={previousAsset ? `current ${fadeArmed ? 'fade-in' : 'hold'}` : 'current'}
+        onClipEnded={onClipEnded}
+      />
+      {preloadSrc ? (
+        <video className="avatar-preload" src={preloadSrc} preload="auto" muted playsInline aria-hidden="true" />
+      ) : null}
+    </>
   )
 }
 
@@ -379,8 +453,20 @@ function TalkShell({
   const activeQuestion = copy.questions[questionIndex]
   const activeField = activeQuestion.field
   const activeAvatarAsset = resolveAvatarAsset(language, activeQuestion)
+  const nextQuestion = copy.questions[questionIndex + 1]
+  const nextQuestionAsset = nextQuestion ? resolveAvatarAsset(language, nextQuestion) : null
   const displayedAvatarAsset: AvatarAsset =
-    phase === 'speaking' ? activeAvatarAsset : { kind: 'idle', src: AVATAR_IDLE_SRC }
+    phase === 'speaking'
+      ? activeAvatarAsset
+      : phase === 'listening'
+        ? { kind: 'listening', src: AVATAR_LISTENING_SRC }
+        : { kind: 'idle', src: AVATAR_IDLE_SRC }
+  const preloadAvatarSrc =
+    phase === 'speaking'
+      ? AVATAR_LISTENING_SRC
+      : phase === 'listening'
+        ? nextQuestionAsset?.src || AVATAR_IDLE_SRC
+        : activeAvatarAsset.src
   const totalQuestions = copy.questions.length
   const progress = Math.round(((questionIndex + 1) / totalQuestions) * 100)
   const captureTokenRef = useRef('')
@@ -912,6 +998,7 @@ function TalkShell({
           <DoctorAvatar
             asset={displayedAvatarAsset}
             active={phase === 'speaking'}
+            preloadSrc={preloadAvatarSrc}
             onClipEnded={handleAvatarClipEnded}
           />
         </div>

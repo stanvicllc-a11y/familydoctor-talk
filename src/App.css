@@ -540,7 +540,29 @@ h1 {
 }
 
 .doctor-avatar-video {
+  position: absolute;
+  inset: 0;
   background: #041f1e;
+  opacity: 1;
+  transition: opacity 280ms ease;
+}
+
+.doctor-avatar-video.current.hold,
+.doctor-avatar-video.previous.fade-out {
+  opacity: 0;
+}
+
+.doctor-avatar-video.current.fade-in,
+.doctor-avatar-video.previous.hold {
+  opacity: 1;
+}
+
+.avatar-preload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .self-view {
