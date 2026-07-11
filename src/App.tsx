@@ -278,14 +278,15 @@ function AvatarVideoLayer({
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    const layerVideo = video
 
     let cancelled = false
-    let hasFrame = video.readyState >= 2
+    let hasFrame = layerVideo.readyState >= 2
     let playbackStarted = false
 
     function notifyReady() {
       if (cancelled || !hasFrame || !playbackStarted) return
-      video.dataset.painted = 'true'
+      layerVideo.dataset.painted = 'true'
       window.requestAnimationFrame(() => {
         if (!cancelled) onReadyRef.current?.()
       })
@@ -296,12 +297,12 @@ function AvatarVideoLayer({
       notifyReady()
     }
 
-    video.load()
+    layerVideo.load()
     if (hasFrame) notifyReady()
-    video.addEventListener('loadeddata', markFrameReady, { once: true })
-    video.addEventListener('canplay', markFrameReady, { once: true })
+    layerVideo.addEventListener('loadeddata', markFrameReady, { once: true })
+    layerVideo.addEventListener('canplay', markFrameReady, { once: true })
 
-    const play = video.play()
+    const play = layerVideo.play()
     if (play && typeof play.catch === 'function') {
       play
         .then(() => {
@@ -310,10 +311,10 @@ function AvatarVideoLayer({
         })
         .catch(() => {
           if (asset.kind === 'clip' && active) {
-            video.dataset.autoplayBlocked = 'true'
+            layerVideo.dataset.autoplayBlocked = 'true'
           }
-          video.muted = true
-          video
+          layerVideo.muted = true
+          layerVideo
             .play()
             .then(() => {
               playbackStarted = true
@@ -332,8 +333,8 @@ function AvatarVideoLayer({
 
     return () => {
       cancelled = true
-      video.removeEventListener('loadeddata', markFrameReady)
-      video.removeEventListener('canplay', markFrameReady)
+      layerVideo.removeEventListener('loadeddata', markFrameReady)
+      layerVideo.removeEventListener('canplay', markFrameReady)
     }
   }, [asset.src, asset.kind, active, mediaUnlocked])
 
