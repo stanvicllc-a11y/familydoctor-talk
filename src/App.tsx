@@ -774,38 +774,44 @@ function TalkShell({
 
   function renderConversationContent() {
     if (phase === 'summary') {
+      const answeredCount = Object.values(intakeData.answers).filter((answer) => answer.value).length
       return (
-        <>
-          <div className="summary-head">
-            <p className="eyebrow">{copy.summaryTitle}</p>
-            <h2 id="talk-title">{copy.summaryTitle}</h2>
-            <p>{copy.closingSpoken}</p>
-          </div>
-          <div className="summary-manuscript" data-testid="intake-summary">
-            {INTAKE_FIELD_KEYS.map((field, fieldIndex) => {
+        <div className="summary-view" data-testid="intake-summary">
+          <header className="summary-head">
+            <h2 id="talk-title">Review your information</h2>
+            <p className="summary-sub">{copy.closingSpoken}</p>
+            <p className="summary-progress">
+              {answeredCount} of {totalQuestions} answered
+            </p>
+          </header>
+
+          <div className="summary-list">
+            {INTAKE_FIELD_KEYS.map((field) => {
               const answer = intakeData.answers[field]
               const editing = editingSummaryField === field
               const label = copy.fieldLabels[field]
               return (
                 <article
-                  className={`summary-line ${editing ? 'editing' : ''}`}
+                  className={`summary-card ${editing ? 'editing' : ''}`}
                   key={field}
                   data-summary-field={field}
-                  style={{ animationDelay: `${fieldIndex * 95}ms` }}
                 >
-                  <div className="summary-line-head">
-                    <strong>{label}</strong>
-                    <button
-                      type="button"
-                      className="icon-only-action"
-                      onClick={() => startInlineEdit(field)}
-                      aria-label={`Edit ${label}`}
-                    >
-                      <Pencil size={15} aria-hidden="true" />
-                    </button>
+                  <div className="summary-card-top">
+                    <span className="summary-card-label">{label}</span>
+                    {!editing ? (
+                      <button
+                        type="button"
+                        className="summary-edit-btn"
+                        onClick={() => startInlineEdit(field)}
+                        aria-label={`Edit ${label}`}
+                      >
+                        <Pencil size={14} aria-hidden="true" />
+                        <span>Edit</span>
+                      </button>
+                    ) : null}
                   </div>
                   {editing ? (
-                    <div className="inline-summary-edit">
+                    <div className="summary-edit-area">
                       <textarea
                         value={inlineEditDraft}
                         onChange={(event) => setInlineEditDraft(event.target.value)}
@@ -816,13 +822,14 @@ function TalkShell({
                           }
                         }}
                         rows={3}
+                        autoFocus
                         aria-label={`Edit ${label}`}
                         data-testid={`summary-edit-${field}`}
                       />
-                      <div>
+                      <div className="summary-edit-actions">
                         <button
                           type="button"
-                          className="icon-text-action solid"
+                          className="summary-btn primary"
                           onPointerDown={(event) => {
                             event.preventDefault()
                             saveInlineEdit()
@@ -834,7 +841,7 @@ function TalkShell({
                         </button>
                         <button
                           type="button"
-                          className="icon-text-action"
+                          className="summary-btn"
                           onClick={() => {
                             setEditingSummaryField(null)
                             setInlineEditDraft('')
@@ -846,26 +853,28 @@ function TalkShell({
                       </div>
                     </div>
                   ) : (
-                    <p>{answer.value || copy.missingAnswer}</p>
+                    <p className={`summary-card-answer ${answer.value ? '' : 'empty'}`}>
+                      {answer.value || copy.missingAnswer}
+                    </p>
                   )}
                 </article>
               )
             })}
             {openEditNote ? (
-              <article
-                className="summary-line"
-                style={{ animationDelay: `${INTAKE_FIELD_KEYS.length * 95}ms` }}
-              >
-                <strong>{copy.openEditLabel}</strong>
-                <p>{openEditNote}</p>
+              <article className="summary-card" data-summary-field="openEdit">
+                <div className="summary-card-top">
+                  <span className="summary-card-label">{copy.openEditLabel}</span>
+                </div>
+                <p className="summary-card-answer">{openEditNote}</p>
               </article>
             ) : null}
           </div>
-          <section className="summary-submit-bar" aria-label={copy.summaryInvitation}>
-            <p>{summaryEditMessage || copy.summaryInvitation}</p>
+
+          <div className="summary-footer">
+            <p className="summary-note">{summaryEditMessage || copy.summaryInvitation}</p>
             <button
               type="button"
-              className="primary-action compact"
+              className="summary-submit"
               onPointerDown={(event) => {
                 event.preventDefault()
                 submitSummary()
@@ -875,25 +884,26 @@ function TalkShell({
             >
               Submit
             </button>
-          </section>
-          <p className="answer-count">
-            {Object.values(intakeData.answers).filter((answer) => answer.value).length}/
-            {totalQuestions}
-          </p>
-        </>
+          </div>
+        </div>
       )
     }
 
     if (phase === 'submitted') {
       return (
-        <>
+        <div className="summary-done" data-testid="intake-submitted">
+          <div className="summary-done-badge" aria-hidden="true">
+            <Check size={30} />
+          </div>
           <p className="eyebrow">Submitted</p>
-          <h2 id="talk-title">Submitted</h2>
-          <p>Submitted — the existing payment/checkout flow continues here in production.</p>
+          <h2 id="talk-title">Thank you</h2>
+          <p className="summary-done-copy">
+            Submitted — the existing payment/checkout flow continues here in production.
+          </p>
           <button type="button" className="secondary-action" onClick={restartScript}>
             {copy.restart}
           </button>
-        </>
+        </div>
       )
     }
 
