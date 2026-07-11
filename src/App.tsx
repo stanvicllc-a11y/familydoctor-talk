@@ -6,7 +6,6 @@ import {
   Pencil,
   PhoneCall,
   Send,
-  ShieldCheck,
   Volume2,
   X,
 } from 'lucide-react'
@@ -63,6 +62,21 @@ const FALLBACK_PATIENTS: ChromePatient[] = [
     relationship: 'child',
   },
 ]
+
+const TEXT_LANGUAGES = [
+  'English',
+  'Hindi',
+  'Tamil',
+  'Telugu',
+  'Kannada',
+  'Malayalam',
+  'Bengali',
+  'Marathi',
+  'Gujarati',
+  'Punjabi',
+]
+
+type ChoiceKey = 'talk' | 'text'
 
 type AvatarAsset =
   | { kind: 'clip'; clipId: AvatarClipId; src: string }
@@ -1015,7 +1029,8 @@ function App() {
   const [talkPermissionMessage, setTalkPermissionMessage] = useState('Preparing camera and microphone...')
   const [talkMediaStream, setTalkMediaStream] = useState<MediaStream | null>(null)
   const [mediaUnlocked, setMediaUnlocked] = useState(false)
-  const copy = content[language]
+  const [selectedChoice, setSelectedChoice] = useState<ChoiceKey | null>(null)
+  const [textLanguage, setTextLanguage] = useState(TEXT_LANGUAGES[0])
 
   useEffect(() => {
     let cancelled = false
@@ -1091,6 +1106,14 @@ function App() {
     setMode('talk')
   }
 
+  function handleTextSelected() {
+    setSelectedChoice('text')
+    // TODO(TALK-8): connect the production Text intake route here during the production merge.
+  }
+
+  const talkChoiceClass = `choice-option talk ${selectedChoice === 'talk' ? 'selected' : selectedChoice === 'text' ? 'dimmed' : ''}`
+  const textChoiceClass = `choice-option text ${selectedChoice === 'text' ? 'selected' : selectedChoice === 'talk' ? 'dimmed' : ''}`
+
   return (
     <ProductionChrome
       members={patients}
@@ -1101,63 +1124,95 @@ function App() {
       <main className="app-shell">
         {mode === 'entry' ? (
           <section className="choice-screen" aria-labelledby="entry-title">
-            <div className="choice-copy">
-              <p className="eyebrow">{copy.entry.eyebrow}</p>
-              <h1 id="entry-title">{copy.entry.title}</h1>
-              <p className="intro">{copy.entry.subtitle}</p>
-              <p className={`backend-status ${authStatus}`} data-testid="backend-status">
-                {authMessage}
-              </p>
-            </div>
-
+            <h1 id="entry-title" className="sr-only">
+              Choose Talk or Text
+            </h1>
+            <p className={`sr-only backend-status ${authStatus}`} data-testid="backend-status">
+              {authMessage}
+            </p>
             <div className="choice-grid" data-testid="choice-grid">
-              <article className="choice-card active" data-testid="choice-talk">
-                <button type="button" className="choice-main" onClick={startTalk}>
-                  <span className="choice-icon">
-                    <PhoneCall size={24} aria-hidden="true" />
-                  </span>
-                  <span>
-                    <strong>Talk</strong>
-                    <small>English / Hindi</small>
-                  </span>
-                  <Send size={19} aria-hidden="true" />
+              <article className={talkChoiceClass} data-testid="choice-talk">
+                <button
+                  type="button"
+                  className="choice-box talk-box"
+                  onClick={() => {
+                    setSelectedChoice('talk')
+                    void startTalk()
+                  }}
+                  onFocus={() => setSelectedChoice('talk')}
+                >
+                  <video
+                    src={AVATAR_LISTENING_SRC}
+                    className="choice-avatar-video"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    aria-hidden="true"
+                  />
+                  <span className="choice-label">Talk</span>
+                  <PhoneCall size={22} aria-hidden="true" />
                 </button>
-                <div className="language-toggle compact" aria-label={copy.languageLabel}>
-                  {Object.values(content).map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={item.key === language ? 'active' : ''}
-                      aria-pressed={item.key === language}
-                      onClick={() => setLanguage(item.key)}
-                    >
-                      {item.key === 'hinglish' ? 'Hindi' : item.shortLabel}
-                    </button>
-                  ))}
-                </div>
+                <label className="choice-select-label">
+                  <span>Language</span>
+                  <select
+                    value={language}
+                    onFocus={() => setSelectedChoice('talk')}
+                    onChange={(event) => {
+                      setSelectedChoice('talk')
+                      setLanguage(event.target.value as LanguageKey)
+                    }}
+                    aria-label="Talk language"
+                  >
+                    <option value="en">English</option>
+                    <option value="hinglish">Hindi</option>
+                  </select>
+                </label>
               </article>
 
-              <button
-                type="button"
-                className="choice-card disabled"
-                disabled
-                aria-disabled="true"
-                data-testid="choice-text"
-              >
-                <span className="choice-icon muted">
-                  <Keyboard size={24} aria-hidden="true" />
-                </span>
-                <span>
-                  <strong>Text</strong>
-                  <small>Coming soon</small>
-                </span>
-                <X size={18} aria-hidden="true" />
-              </button>
-
-              <div className="privacy-strip">
-                <ShieldCheck size={18} aria-hidden="true" />
-                <span>{copy.entry.privacy}</span>
-              </div>
+              <article className={textChoiceClass} data-testid="choice-text">
+                <button
+                  type="button"
+                  className="choice-box text-box"
+                  onClick={handleTextSelected}
+                  onFocus={() => setSelectedChoice('text')}
+                >
+                  <video
+                    src={AVATAR_IDLE_SRC}
+                    className="choice-text-still"
+                    muted
+                    playsInline
+                    preload="metadata"
+                    aria-hidden="true"
+                  />
+                  <span className="choice-label">Text</span>
+                  <div className="text-preview" aria-hidden="true">
+                    <span>What brings you in today?</span>
+                    <span>How long has this been going on?</span>
+                    <span>Any allergies or medicines?</span>
+                  </div>
+                  <Keyboard size={22} aria-hidden="true" />
+                </button>
+                <label className="choice-select-label">
+                  <span>Language</span>
+                  <select
+                    value={textLanguage}
+                    onFocus={() => setSelectedChoice('text')}
+                    onChange={(event) => {
+                      setSelectedChoice('text')
+                      setTextLanguage(event.target.value)
+                    }}
+                    aria-label="Text language"
+                  >
+                    {TEXT_LANGUAGES.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </article>
             </div>
           </section>
         ) : mode === 'permissions' ? (
