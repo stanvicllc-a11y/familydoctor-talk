@@ -1024,9 +1024,6 @@ function App() {
   const [selectedChoice, setSelectedChoice] = useState<ChoiceKey | null>(null)
   const [textLanguage, setTextLanguage] = useState(TEXT_LANGUAGES[0])
   const avatarEngineRef = useRef<AvatarEngineHandle>(null)
-  // TEMPORARY (Stage 1): surfaces .play() rejection names on-screen so autoplay
-  // failures can be read on a real iPhone without a Mac. Removed in Stage 3.
-  const [avatarDebug, setAvatarDebug] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -1119,13 +1116,10 @@ function App() {
       onSwitchPatient={setSelectedPatientId}
     >
       {/* Persistent, always-mounted so its two <video> elements exist BEFORE the
-          Talk tap and can be unlocked inside that gesture. Sits behind the shell. */}
-      <AvatarEngine ref={avatarEngineRef} onDebug={setAvatarDebug} />
-      {avatarDebug ? (
-        <p className="talk-debug-line" data-testid="avatar-debug">
-          avatar: {avatarDebug}
-        </p>
-      ) : null}
+          Talk tap and can be unlocked inside that gesture. Sits behind the shell.
+          onDebug logs .play() rejections to the console — visible on a real iPhone
+          via Mac Safari Web Inspector (Develop -> [iPhone] -> Console). */}
+      <AvatarEngine ref={avatarEngineRef} onDebug={(message) => console.warn('[avatar]', message)} />
       <main className="app-shell">
         {mode === 'entry' ? (
           <section className="choice-screen" aria-labelledby="entry-title">
