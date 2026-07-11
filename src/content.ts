@@ -147,77 +147,83 @@ export const content: Record<LanguageKey, LanguageContent> = {
         currentMedications: 'Current medicines',
         conditions: 'Long-term conditions',
         surgeries: 'Past surgeries',
+        pregnancy: 'Pregnancy',
       },
       questions: [
         {
           field: 'chiefComplaint',
-          text: 'What is the main problem you want help with today?',
+          text: "Hello, I'm Raj, your AI Health Assistant. I'm here to listen and take good care of you. So tell me — what brings you in today? What's the main problem you're feeling right now?",
           clipId: 'g1',
         },
         {
           field: 'duration',
-          text: 'When did this start?',
+          text: 'And how long has this been going on for?',
           clipId: 'q_duration',
         },
         {
           field: 'severity',
-          text: 'How bad is it, and how is it affecting your day?',
+          text: 'How bad is it for you — on a scale of 1 to 10?',
           clipId: 'q_severity',
         },
         {
           field: 'betterWorse',
-          text: 'Has it been getting better, worse, or staying about the same?',
+          text: 'Does anything make it better or worse, and are there any other symptoms along with it?',
           clipId: 'q_betterworse',
         },
         {
           field: 'showMe',
-          text: 'If there is anything visible, like a rash or swelling, can you show me or describe it?',
+          text: "If it's something I can see — like your throat, your skin, or the area that's troubling you — go ahead and show me, and I'll take a look.",
           clipId: 'q_showme',
         },
         {
           field: 'throatCheck',
-          text: 'If your mouth or throat is involved, please say ahh or describe what you see.',
+          text: "If your throat is bothering you, open your mouth wide and say 'ahhh' — let me have a look.",
           clipId: 'q_ahh',
         },
         {
           field: 'sickContacts',
-          text: 'Has anyone around you been sick with similar symptoms?',
+          text: 'Has anyone around you been unwell recently — someone at home or at work with something similar?',
           clipId: 'q_contacts',
         },
         {
           field: 'recentTravel',
-          text: 'Have you travelled recently or eaten anything unusual?',
+          text: 'Have you travelled anywhere in the last month or so?',
           clipId: 'q_travel',
         },
         {
           field: 'associatedSymptoms',
-          text: 'What other symptoms have you noticed, like fever, cough, pain, vomiting, or breathing trouble?',
+          text: "Are you having any other symptoms as well — things like fever, chills, body aches, headache, cough, stomach upset, or anything on your skin? Tell me anything you've noticed, even small things.",
           clipId: 'q_ros',
         },
         {
           field: 'historyIntro',
-          text: 'Now I want to confirm your medical history before the doctor reviews this.',
+          text: 'Now let me quickly understand your medical background, so I can take care of you safely.',
           clipId: 'q_hxintro',
         },
         {
           field: 'allergies',
-          text: 'Do you have any allergies to medicines or foods?',
+          text: 'This is important — do you have any allergies? For example, to any medicines like penicillin, or to anything else? Please tell me everything you know of.',
           clipId: 'q_allergies',
         },
         {
           field: 'currentMedications',
-          text: 'What medicines or supplements do you take regularly?',
+          text: 'Are you currently taking any medicines regularly — anything for blood pressure, sugar, thyroid, or anything else?',
           clipId: 'q_meds',
         },
         {
           field: 'conditions',
-          text: 'Do you have any long-term medical conditions?',
+          text: 'Do you have any ongoing health conditions — like diabetes, high blood pressure, asthma, thyroid, or heart problems?',
           clipId: 'q_conditions',
         },
         {
           field: 'surgeries',
-          text: 'Have you had any surgeries the doctor should know about?',
+          text: 'Have you had any surgeries or operations in the past?',
           clipId: 'q_surgeries',
+        },
+        {
+          field: 'pregnancy',
+          text: 'And just to be safe, since it matters for your treatment — is there any chance you might be pregnant right now?',
+          clipId: 'q_pregnancy',
         },
       ],
     },
@@ -302,6 +308,7 @@ export const content: Record<LanguageKey, LanguageContent> = {
         currentMedications: 'Current medicines',
         conditions: 'Long-term conditions',
         surgeries: 'Past surgeries',
+        pregnancy: 'Pregnancy',
       },
       questions: [
         {
@@ -359,6 +366,10 @@ export const content: Record<LanguageKey, LanguageContent> = {
         {
           field: 'surgeries',
           text: 'Kya aapki koi past surgeries hui hain jo doctor ko pata honi chahiye?',
+        },
+        {
+          field: 'pregnancy',
+          text: 'Safety ke liye, kya pregnancy ka koi chance hai?',
         },
       ],
     },

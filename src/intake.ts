@@ -15,6 +15,7 @@ export type IntakeFieldKey =
   | 'currentMedications'
   | 'conditions'
   | 'surgeries'
+  | 'pregnancy'
 
 export type AvatarClipId =
   | 'g1'
@@ -31,6 +32,7 @@ export type AvatarClipId =
   | 'q_meds'
   | 'q_conditions'
   | 'q_surgeries'
+  | 'q_pregnancy'
 
 export type IntakeAnswerSource = 'speech' | 'typed'
 
@@ -69,6 +71,7 @@ export const INTAKE_FIELD_KEYS: IntakeFieldKey[] = [
   'currentMedications',
   'conditions',
   'surgeries',
+  'pregnancy',
 ]
 
 export function createEmptyIntake(language: LanguageKey): IntakeData {

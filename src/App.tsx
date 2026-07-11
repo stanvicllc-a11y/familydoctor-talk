@@ -62,7 +62,7 @@ const FALLBACK_PATIENTS: ChromePatient[] = [
 
 type AvatarAsset =
   | { kind: 'clip'; clipId: AvatarClipId; src: string }
-  | { kind: 'listening'; src: string }
+  | { kind: 'listening'; src: string; missingClipId?: AvatarClipId }
   | { kind: 'idle'; src: string; missingClipId?: AvatarClipId }
 
 declare global {
@@ -140,6 +140,7 @@ function inferEditField(editText: string): IntakeFieldKey | null {
   if (matches(['history'])) return 'historyIntro'
   if (matches(['condition', 'diabetes', 'pressure', 'asthma'])) return 'conditions'
   if (matches(['surgery', 'operation'])) return 'surgeries'
+  if (matches(['pregnant', 'pregnancy'])) return 'pregnancy'
   if (matches(['main', 'problem', 'complaint'])) return 'chiefComplaint'
 
   return null
@@ -188,19 +189,19 @@ function resolveAvatarAsset(language: LanguageKey, question?: IntakeQuestion): A
 
   const clipSrc = AVATAR_CLIP_SRC[question.clipId]
   if (!clipSrc) {
-    return { kind: 'idle', src: AVATAR_IDLE_SRC, missingClipId: question.clipId }
+    return { kind: 'listening', src: AVATAR_LISTENING_SRC, missingClipId: question.clipId }
   }
 
   return { kind: 'clip', clipId: question.clipId, src: clipSrc }
 }
 
 function avatarAssetKey(asset: AvatarAsset) {
-  return `${asset.kind}:${asset.src}:${asset.kind === 'clip' ? asset.clipId : asset.kind === 'idle' ? asset.missingClipId || 'idle' : 'loop'}`
+  return `${asset.kind}:${asset.src}:${asset.kind === 'clip' ? asset.clipId : asset.missingClipId || asset.kind}`
 }
 
 function avatarLabel(asset: AvatarAsset, active: boolean) {
   if (asset.kind === 'clip' && active) return `Raj filmed clip ${asset.clipId}`
-  if (asset.kind === 'listening') return 'Raj listening avatar loop'
+  if (asset.kind === 'listening') return asset.missingClipId ? `Raj listening avatar loop for ${asset.missingClipId}` : 'Raj listening avatar loop'
   return 'Raj idle avatar loop'
 }
 
@@ -243,7 +244,7 @@ function AvatarVideoLayer({
       preload="auto"
       aria-label={avatarLabel(asset, active)}
       data-avatar-mode={asset.kind}
-      data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.kind === 'idle' ? asset.missingClipId || 'idle' : 'listening'}
+      data-avatar-clip={asset.kind === 'clip' ? asset.clipId : asset.missingClipId || asset.kind}
       onEnded={() => {
         if (asset.kind === 'clip' && active) onClipEnded()
       }}
