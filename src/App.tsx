@@ -26,6 +26,8 @@ import { useSpeechRecognition } from './useSpeechRecognition'
 
 type SelfViewStatus = 'loading' | 'ready' | 'blocked'
 type FlowPhase = 'speaking' | 'listening' | 'summary' | 'submitted'
+type AppMode = 'entry' | 'permissions' | 'talk'
+type TalkPermissionStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'
 
 const SILENCE_ADVANCE_MS = 1500
 const TTS_SAFETY_BUFFER_MS = 1800
@@ -70,6 +72,46 @@ type AvatarAsset =
 declare global {
   interface Window {
     webkitAudioContext?: typeof AudioContext
+  }
+}
+
+async function getPermissionState(name: PermissionName) {
+  if (!navigator.permissions?.query) return 'prompt' as PermissionState
+
+  try {
+    const status = await navigator.permissions.query({ name })
+    return status.state
+  } catch {
+    return 'prompt' as PermissionState
+  }
+}
+
+async function requestTalkMediaStream(existingStream: MediaStream | null) {
+  if (existingStream?.active) {
+    return { status: 'granted' as const, stream: existingStream }
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return { status: 'unsupported' as const, stream: null }
+  }
+
+  const [cameraState, microphoneState] = await Promise.all([
+    getPermissionState('camera' as PermissionName),
+    getPermissionState('microphone' as PermissionName),
+  ])
+
+  if (cameraState === 'denied' || microphoneState === 'denied') {
+    return { status: 'denied' as const, stream: null }
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: true,
+    })
+    return { status: 'granted' as const, stream }
+  } catch {
+    return { status: 'denied' as const, stream: null }
   }
 }
 
@@ -258,58 +300,28 @@ function DoctorAvatar({
   )
 }
 
-function SelfView({ language }: { language: LanguageKey }) {
+function SelfView({
+  language,
+  mediaStream,
+  permissionStatus,
+}: {
+  language: LanguageKey
+  mediaStream: MediaStream | null
+  permissionStatus: TalkPermissionStatus
+}) {
   const copy = content[language].talk
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const shellRef = useRef<HTMLDivElement | null>(null)
-  const [status, setStatus] = useState<SelfViewStatus>('loading')
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
+  const status: SelfViewStatus = mediaStream ? 'ready' : permissionStatus === 'idle' || permissionStatus === 'requesting' ? 'loading' : 'blocked'
 
   useEffect(() => {
-    let stream: MediaStream | null = null
-    let cancelled = false
-
-    async function startCamera() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setStatus('blocked')
-        return
-      }
-
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: false,
-        })
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop())
-          return
-        }
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-        }
-        setCameraStream(stream)
-        setStatus('ready')
-      } catch {
-        setStatus('blocked')
-      }
+    if (videoRef.current && mediaStream) {
+      videoRef.current.srcObject = mediaStream
     }
-
-    startCamera()
-
-    return () => {
-      cancelled = true
-      stream?.getTracks().forEach((track) => track.stop())
-    }
-  }, [])
-
-  useEffect(() => {
-    if (videoRef.current && cameraStream) {
-      videoRef.current.srcObject = cameraStream
-    }
-  }, [cameraStream])
+  }, [mediaStream])
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     const rect = shellRef.current?.getBoundingClientRect()
@@ -372,9 +384,13 @@ function SelfView({ language }: { language: LanguageKey }) {
 
 function TalkShell({
   language,
+  mediaStream,
+  permissionStatus,
   onBack,
 }: {
   language: LanguageKey
+  mediaStream: MediaStream | null
+  permissionStatus: TalkPermissionStatus
   onBack: () => void
 }) {
   const copy = content[language].talk
@@ -847,7 +863,7 @@ function TalkShell({
           />
         </div>
       </div>
-      <SelfView language={language} />
+      <SelfView language={language} mediaStream={mediaStream} permissionStatus={permissionStatus} />
       <div className="conversation-panel" data-testid="control-area" data-phase={phase}>
         {renderConversationContent()}
       </div>
@@ -857,11 +873,14 @@ function TalkShell({
 
 function App() {
   const [language, setLanguage] = useState<LanguageKey>('en')
-  const [mode, setMode] = useState<'entry' | 'talk'>('entry')
+  const [mode, setMode] = useState<AppMode>('entry')
   const [selectedPatientId, setSelectedPatientId] = useState('self')
   const [patients, setPatients] = useState<ChromePatient[]>(FALLBACK_PATIENTS)
   const [authStatus, setAuthStatus] = useState<'connecting' | 'ready' | 'error'>('connecting')
   const [authMessage, setAuthMessage] = useState('Connecting dummy patient account...')
+  const [talkPermissionStatus, setTalkPermissionStatus] = useState<TalkPermissionStatus>('idle')
+  const [talkPermissionMessage, setTalkPermissionMessage] = useState('Preparing camera and microphone...')
+  const [talkMediaStream, setTalkMediaStream] = useState<MediaStream | null>(null)
   const copy = content[language]
 
   useEffect(() => {
@@ -901,8 +920,38 @@ function App() {
     }
   }, [])
 
-  function startTalk() {
+  useEffect(() => {
+    return () => {
+      talkMediaStream?.getTracks().forEach((track) => track.stop())
+    }
+  }, [talkMediaStream])
+
+  async function startTalk() {
+    setMode('permissions')
+    setTalkPermissionStatus('requesting')
+    setTalkPermissionMessage('Allow camera and microphone once to start Talk.')
     primeSpeechSynthesis(language)
+
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+
+    const result = await requestTalkMediaStream(talkMediaStream)
+    setTalkPermissionStatus(result.status)
+
+    if (result.status === 'granted') {
+      setTalkMediaStream(result.stream)
+      setTalkPermissionMessage('Camera and microphone are ready.')
+      setMode('talk')
+      return
+    }
+
+    setTalkPermissionMessage(
+      result.status === 'unsupported'
+        ? 'This browser cannot open camera or microphone here. You can continue with typed answers.'
+        : 'Camera or microphone was blocked. You can continue with typed answers.',
+    )
+  }
+
+  function continueWithoutMedia() {
     setMode('talk')
   }
 
@@ -975,8 +1024,34 @@ function App() {
               </div>
             </div>
           </section>
+        ) : mode === 'permissions' ? (
+          <section className="permission-screen" aria-labelledby="permission-title">
+            <div className="permission-panel" data-testid="permission-panel" data-permission-status={talkPermissionStatus}>
+              <p className="eyebrow">Talk setup</p>
+              <h1 id="permission-title">Camera and microphone</h1>
+              <p className="intro">{talkPermissionMessage}</p>
+              {talkPermissionStatus === 'requesting' ? (
+                <div className="permission-meter" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ) : null}
+              {talkPermissionStatus === 'denied' || talkPermissionStatus === 'unsupported' ? (
+                <button type="button" className="primary-action" onClick={continueWithoutMedia}>
+                  <Keyboard size={20} aria-hidden="true" />
+                  Continue with typed answers
+                </button>
+              ) : null}
+            </div>
+          </section>
         ) : (
-          <TalkShell language={language} onBack={() => setMode('entry')} />
+          <TalkShell
+            language={language}
+            mediaStream={talkMediaStream}
+            permissionStatus={talkPermissionStatus}
+            onBack={() => setMode('entry')}
+          />
         )}
       </main>
     </ProductionChrome>
